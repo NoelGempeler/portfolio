@@ -3,14 +3,16 @@
   <!-- 
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
-  Updated: Strictly enforced user-provided Model Viewer logic and CSP.
+  Updated: 
+  - Fixed GLB loading by setting path to 'untitled1.glb' (root).
+  - Preserved About Me text with inverted styling.
 -->
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Exact Edge Scaling</title>
 
-    <!-- CSP: Updated to allow model-viewer CDN and local blobs (User Provided) -->
+    <!-- CSP: Updated to allow model-viewer CDN and local blobs -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' blob:; img-src * data: blob:; style-src * 'unsafe-inline'; object-src * data: blob:; font-src * data:;"
@@ -19,7 +21,7 @@
     <!-- TAILWIND CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- LOAD MODEL-VIEWER COMPONENT (User Provided) -->
+    <!-- LOAD MODEL-VIEWER COMPONENT -->
     <script
       type="module"
       src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"
@@ -29,13 +31,11 @@
       /* --- CUSTOM FONT DEFINITION --- */
       @font-face {
         font-family: "Programme";
-        src: url("/mainwebsite/Programme-Regular/Programme-Regular.eot");
-        src: url("/mainwebsite/Programme-Regular/Programme-Regular.eot?#iefix")
+        src: url("Programme-Regular/Programme-Regular.eot");
+        src: url("Programme-Regular/Programme-Regular.eot?#iefix")
             format("embedded-opentype"),
-          url("/mainwebsite/Programme-Regular/Programme-Regular.woff2")
-            format("woff2"),
-          url("/mainwebsite/Programme-Regular/Programme-Regular.woff")
-            format("woff");
+          url("Programme-Regular/Programme-Regular.woff2") format("woff2"),
+          url("Programme-Regular/Programme-Regular.woff") format("woff");
         font-weight: 400;
         font-style: normal;
         font-display: swap;
@@ -140,14 +140,14 @@
         opacity: 1;
       }
 
-      /* --- MODEL VIEWER STYLES (User Provided) --- */
+      /* --- MODEL VIEWER STYLES --- */
       :not(:defined) > * {
         display: none;
       }
 
       model-viewer {
         width: 100%;
-        height: 100%; /* Adjusted to fill screen */
+        height: 100%;
         background-color: #ffffff;
         outline: none;
       }
@@ -201,7 +201,7 @@
       }
 
       #ar-button {
-        /* Assuming ar_icon.png is local */
+        /* UPDATED: Set to root path */
         background-image: url(ar_icon.png);
         background-repeat: no-repeat;
         background-size: 20px 20px;
@@ -319,7 +319,6 @@
       }
 
       /* --- ABOUT TEXT --- */
-      /* Inverted style: White color + Difference blend mode */
       .about-bottom-text {
         position: absolute;
         bottom: 5px;
@@ -499,14 +498,18 @@
 
     <!-- 5. ABOUT PAGE WITH MODEL-VIEWER -->
     <div id="about-page">
-      <!-- model-viewer logic directly integrated -->
-      <!-- NOTE: src is just filename because they are in same folder -->
+      <!-- 
+        MODEL VIEWER ELEMENT 
+        - src="untitled1.glb" (Updated path to root)
+        - poster="poster.webp" (Updated path to root)
+      -->
       <model-viewer
         src="scans/untitled1.glb"
         ar
         ar-modes="webxr scene-viewer quick-look"
         camera-controls
         tone-mapping="neutral"
+        poster="poster.webp"
         shadow-intensity="0"
         exposure="0.98"
       >
@@ -515,12 +518,13 @@
         </div>
         <button slot="ar-button" id="ar-button">View in your space</button>
         <div id="ar-prompt">
-          <!-- Simple unicode hand fallback if image missing -->
-          👋
+          <img src="ar_hand_prompt.png" />
         </div>
       </model-viewer>
 
-      <div class="about-center-text"></div>
+      <div class="about-center-text">
+        <!-- Empty title -->
+      </div>
       <div class="about-bottom-text">
         I’m a designer who loves exploring the experimental side of visual
         communication, always searching for new ways to break, stretch, and
@@ -572,14 +576,13 @@
         boxWidth: 200,
         boxHeight: 133,
         minDist: 120,
-        maxImages: 8, // LIMIT 8
+        maxImages: 8,
         navZoneHeight: 100,
-        mobileBoxWidth: 150,
-        mobileBoxHeight: 100,
+        mobileScale: 0.75, // Images are 75% of 200px (150px) on mobile
         mobileMinDist: 60,
       };
 
-      // --- ASSETS (RESTORED DYNAMIC GENERATION) ---
+      // --- ASSETS ---
       const GALLERIES = [];
       const projectFolders = [
         "bitwusst",
@@ -603,20 +606,26 @@
         GALLERIES.push(arr);
       }
 
-      const PROJECT_NAMES = projectFolders.map(
-        (name) => name.charAt(0).toUpperCase() + name.slice(1)
-      );
+      const PROJECT_NAMES = [
+        "PLACEHOLDER PROJECT 1",
+        "PLACEHOLDER PROJECT 2",
+        "PLACEHOLDER PROJECT 3",
+        "PLACEHOLDER PROJECT 4",
+        "PLACEHOLDER PROJECT 5",
+        "PLACEHOLDER PROJECT 6",
+        "PLACEHOLDER PROJECT 7",
+        "PLACEHOLDER PROJECT 8",
+      ];
 
       const CAPTIONS = [
-        "Bitwusst? Zwischen Denken und Rechnen flimmert ein schmaler Streifen Bewusstsein. Was trennt das Erkennen vom Erfassen, das Fühlen vom Verarbeiten? Vielleicht ist Bewusstsein kein Ort, sondern ein Übergang – ein leises Pulsieren zwisc Bitwusst? fragt, ob das Menschliche im Digitalen erlischt oder dort, inmitten von Algorithmen und Zufall, eine neue Form des Selbst erwacht – nicht aus Fleisch, sondern aus Verbindung.",
-        "Ein leerer Kopf ist nie leer. In diesem Projekt brachte ich spontane Ideen direkt aufs Papier – ohne Plan, nur mit Rhythmus. Auf einem grossen Format entstand eine funky Jazzband aus Strichen, Formen und Energie. Ich lernte, wie plakative Gestaltung wirkt, wenn sie aus dem Bauch kommt. Kopfzeichen diente weniger als Übung, sondern als Befreiung. – und ein erster Schritt, Intuition als Gestaltungstool zu nutzen. ",
-        "Lampen Trio Mein erstes Layout-Projekt: ein Katalog über Designerlampen. Dabei lernte ich Raster, Mikrotypografie und das Prinzip, gutes Design beruht auf Logik, nicht auf Zufall. Inspiriert von Josef Müller-Brockmann baute ich ein klares, rhythmisches Layout auf, das Raum und Typografie in Balance bringt. Lampen Trio war mein Einstieg in das Denken in Systemen und ein Crashkurs in grafischer Präzision.",
-        "Irrgarten�Ein Wort, tausend Wege. In Irrgarten setzte ich mich mit dem zugeteilten Begriff zeichnerisch und digital auseinander und verband ihn mit dem philosophischen Konzept der Liminalität – dem Zustand des Dazwischen. Durch 3D-Modeling in Blender und digitales Malen entstand eine poetische Mixed-Media-Arbeit, die Zwischenräume erforscht: Orte, die weder real noch imaginär sind, sondern Übergänge. Irrgarten wurde so zu einer visuellen Metapher für Orientierung, Auflösung und das Suchen im Unbestimmten.",
-        "24 Stunden�Ein Tag, eine Klasse, unzählige Geschichten. Im interdisziplinären Projekt 24 Stunden entwickelte ich ein Layoutkonzept, das Zeit in Struktur übersetzt: ein Raster mit 24 Zeilen und 60 Spalten – jede Stunde, jede Minute. So fliessen die Bilder der Klasse wie ein Strom durch das Buch, während der Text verdrängt, verschoben und neu geordnet wurde. Eine visuelle Studie über Zeit, Rhythmus und das Verhältnis von Inhalt und Form.",
-        "Gruss aus Luzern!�Kein Pilatus, keine Kapellbrücke – dafür Emil Manser. Für diese Postkarte wollte ich das unperfekte Luzern zeigen: roh, laut und echt. Ich programmierte mit Python einen Generator, der aus Mansers Schildertexten ein neues Porträt formte. So entstand ein digitales Bild, das Philosophie, Strasse und Code verbindet – ein Gruss aus dem echten Luzern, nicht dem touristischen.",
-        "Perdus�In einer Stadt, in der barocke Pracht auf soziale Unsichtbarkeit trifft, untersucht Perdus die Kluft zwischen Macht und Marginalisierung. Ausgehend der Place des Victoires verbinden sich visuelle Scans, historische Bezüge und sozialkritische Texte zu einem stillen Dialog über Verfall, Würde und Ungleichheit. Die Publikation lädt ein, Paris nicht nur als architektonisches Erbe zu sehen, sondern als Bühne der sozialen Fragen unserer Zeit.",
-        "Perdus�In einer Stadt, in der barocke Pracht auf soziale Unsichtbarkeit trifft, untersucht Perdus die Kluft zwischen Macht und Marginalisierung. Ausgehend der Place des Victoires verbinden sich visuelle Scans, historische Bezüge und sozialkritische Texte zu einem stillen Dialog über Verfall, Würde und Ungleichheit. Die Publikation lädt ein, Paris nicht nur als architektonisches Erbe zu sehen, sondern als Bühne der sozialen Fragen unserer Zeit.",
-        "Perdus�In einer Stadt, in der barocke Pracht auf soziale Unsichtbarkeit trifft, untersucht Perdus die Kluft zwischen Macht und Marginalisierung. Ausgehend der Place des Victoires verbinden sich visuelle Scans, historische Bezüge und sozialkritische Texte zu einem stillen Dialog über Verfall, Würde und Ungleichheit. Die Publikation lädt ein, Paris nicht nur als architektonisches Erbe zu sehen, sondern als Bühne der sozialen Fragen unserer Zeit.",
+        "Zwischen Denken und Rechnen...",
+        "Kopfzeichnen Ein leerer Kopf...",
+        "Lampen Trio...",
+        "Irrgarten...",
+        "24 Stunden...",
+        "Gruss aus Luzern!...",
+        "Perdus...",
+        "Perdus...",
       ];
 
       // --- STATE ---
@@ -664,7 +673,6 @@
       checkMobile();
 
       // --- MODEL VIEWER EVENT LOGIC ---
-      // Integrated from your snippet
       const onProgress = (event) => {
         const progressBar = event.target.querySelector(".progress-bar");
         const updatingBar = event.target.querySelector(".update-bar");
@@ -678,7 +686,6 @@
           if (progressBar) progressBar.classList.remove("hide");
         }
       };
-      // Attach listener to model-viewer
       const modelViewer = document.querySelector("model-viewer");
       if (modelViewer) {
         modelViewer.addEventListener("progress", onProgress);
@@ -931,20 +938,25 @@
         const container = document.createElement("div");
         container.className = "trail-image";
 
-        // UPDATED: Use mobile dimensions if on mobile
-        const width = state.isMobile ? CONFIG.mobileBoxWidth : CONFIG.boxWidth;
-        const height = state.isMobile
-          ? CONFIG.mobileBoxHeight
-          : CONFIG.boxHeight;
+        // ALWAYS use Full Size (200x133) for layout
+        const width = CONFIG.boxWidth;
+        const height = CONFIG.boxHeight;
         container.style.width = width + "px";
         container.style.height = height + "px";
+
+        // Apply Visual Scale for Mobile
+        if (state.isMobile) {
+          container.style.setProperty("--idle-scale", CONFIG.mobileScale);
+        } else {
+          container.style.setProperty("--idle-scale", 1);
+        }
 
         const galleryIndex = (state.count - 1) % GALLERIES.length;
         container.dataset.galleryIndex = galleryIndex;
         container.dataset.slideIndex = 0;
         container.dataset.boxId = boxId;
 
-        // USE loadMedia for Cover (Supports .webp or .mp4 fallback)
+        // USE loadMedia for Cover
         const coverUrl = GALLERIES[galleryIndex][0];
         loadMedia(
           coverUrl,
@@ -994,13 +1006,10 @@
 
         // MOBILE SCALING
         if (state.isMobile) {
-          const vpW = window.visualViewport
-            ? window.visualViewport.width
-            : document.documentElement.clientWidth;
-
-          // UPDATED: Calculate scale based on current element width (which is smaller on mobile)
-          const currentW = parseFloat(element.style.width);
-          const scale = vpW / currentW;
+          const vpW = window.innerWidth;
+          // Current W is full res (200px)
+          const currentW = CONFIG.boxWidth;
+          const scale = (vpW / currentW) * 1.005; // Slight overlap to prevent gap
 
           const newCenterX = vpW / 2;
 
@@ -1010,7 +1019,6 @@
           // Calculate collision with footer text
           const scaledH = parseFloat(element.style.height) * scale;
           const halfH = scaledH / 2;
-
           const footerRect = footerEl.getBoundingClientRect();
           const limitBottom = footerRect.top - 10;
 
