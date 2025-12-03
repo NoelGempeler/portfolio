@@ -1,0 +1,25 @@
+.ueberschrift {
+  font-size: 100px;
+  color: black;
+  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  text-align: center;
+}
+
+img {
+  width: 1500px;
+  display: block;
+  width: 90%;
+  margin: auto;
+}
+
+@media all and (max-width: 599px) {
+  body {
+    background-color: red;
+  }
+}
+
+@media all and (min-width: 600px) {
+  body {
+    background-color: blue;
+  }
+}

@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+  <!-- 
+  --- FILE: index.html ---
+  Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
+  Updated: Strictly enforced user-provided Model Viewer logic and CSP.
+-->
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Exact Edge Scaling</title>
+
+    <!-- CSP: Updated to allow model-viewer CDN and local blobs (User Provided) -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' blob:; img-src * data: blob:; style-src * 'unsafe-inline'; object-src * data: blob:; font-src * data:;"
+    />
+
+    <!-- TAILWIND CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- LOAD MODEL-VIEWER COMPONENT (User Provided) -->
+    <script
+      type="module"
+      src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"
+    ></script>
+
+    <style>
+      /* --- CUSTOM FONT DEFINITION --- */
+      @font-face {
+        font-family: "Programme";
+        src: url("/mainwebsite/Programme-Regular/Programme-Regular.eot");
+        src: url("/mainwebsite/Programme-Regular/Programme-Regular.eot?#iefix")
+            format("embedded-opentype"),
+          url("/mainwebsite/Programme-Regular/Programme-Regular.woff2")
+            format("woff2"),
+          url("/mainwebsite/Programme-Regular/Programme-Regular.woff")
+            format("woff");
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      /* --- GLOBAL RESET --- */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #ffffff;
+        font-family: "Programme", sans-serif;
+        overflow: hidden;
+        font-size: 1rem;
+        cursor: none !important;
+        overscroll-behavior: none;
+        touch-action: none;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        cursor: none !important;
+      }
+
+      /* --- CUSTOM CURSOR --- */
+      #custom-cursor {
+        position: fixed;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+        z-index: 10000;
+        font-family: "Programme", sans-serif;
+        font-weight: 400;
+        font-size: 2rem;
+        line-height: 1;
+        color: #ffffff;
+        mix-blend-mode: difference;
+        transform: translate(-50%, -50%);
+        transition: transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+        will-change: transform, top, left;
+      }
+
+      body.is-mobile #custom-cursor {
+        transition: none;
+      }
+
+      /* --- EXPAND BUTTON --- */
+      #expand-btn {
+        display: none;
+        position: absolute;
+        z-index: 5500; /* Ensure above zoomed image */
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.95);
+        color: black;
+        border: 1px solid black;
+        font-size: 1.8rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: translate(-50%, -50%);
+        opacity: 0;
+        transition: opacity 0.3s ease, transform 0.2s ease;
+        pointer-events: auto;
+      }
+      #expand-btn:hover {
+        transform: translate(-50%, -50%) scale(1.1);
+        background: white;
+      }
+
+      /* --- MAIN LAYOUT --- */
+      #canvas {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        background-color: #ffffff;
+        transition: opacity 0.4s ease;
+      }
+
+      /* --- ABOUT PAGE WRAPPER --- */
+      #about-page {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: #ffffff;
+        z-index: 2000;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+      }
+
+      #about-page.active {
+        display: block;
+        opacity: 1;
+      }
+
+      /* --- MODEL VIEWER STYLES (User Provided) --- */
+      :not(:defined) > * {
+        display: none;
+      }
+
+      model-viewer {
+        width: 100%;
+        height: 100%; /* Adjusted to fill screen */
+        background-color: #ffffff;
+        outline: none;
+      }
+
+      model-viewer > #ar-prompt {
+        position: absolute;
+        left: 50%;
+        bottom: 60px;
+        animation: elongate 20s infinite ease-in-out alternate;
+        display: none;
+        z-index: 50;
+      }
+
+      model-viewer[ar-status="session-started"] > #ar-prompt {
+        display: block;
+      }
+
+      model-viewer > #ar-prompt > img {
+        animation: circle 20s linear infinite;
+      }
+
+      .progress-bar {
+        display: block;
+        width: 33%;
+        height: 10%;
+        max-height: 2%;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate3d(-50%, -50%, 0);
+        border-radius: 25px;
+        box-shadow: 0px 3px 10px 3px rgba(0, 0, 0, 0.5),
+          0px 0px 5px 1px rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.9);
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 50;
+      }
+
+      .progress-bar.hide {
+        visibility: hidden;
+        transition: visibility 0.3s;
+      }
+
+      .update-bar {
+        background-color: rgba(255, 255, 255, 0.9);
+        width: 0%;
+        height: 100%;
+        border-radius: 25px;
+        float: left;
+        transition: width 0.3s;
+      }
+
+      #ar-button {
+        /* Assuming ar_icon.png is local */
+        background-image: url(ar_icon.png);
+        background-repeat: no-repeat;
+        background-size: 20px 20px;
+        background-position: 12px 50%;
+        background-color: #fff;
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        white-space: nowrap;
+        bottom: 16px;
+        padding: 0px 16px 0px 40px;
+        font-family: "Programme", sans-serif;
+        font-size: 14px;
+        color: #4285f4;
+        height: 36px;
+        line-height: 36px;
+        border-radius: 18px;
+        border: 1px solid #dadce0;
+        z-index: 50;
+        cursor: none !important;
+      }
+
+      #ar-button:active {
+        background-color: #e8eaed;
+      }
+
+      #ar-button:focus {
+        outline: none;
+      }
+
+      #ar-button:focus-visible {
+        outline: 1px solid #4285f4;
+      }
+
+      @keyframes circle {
+        from {
+          transform: translateX(-50%) rotate(0deg) translateX(50px) rotate(0deg);
+        }
+        to {
+          transform: translateX(-50%) rotate(360deg) translateX(50px)
+            rotate(-360deg);
+        }
+      }
+
+      @keyframes elongate {
+        from {
+          transform: translateX(100px);
+        }
+        to {
+          transform: translateX(-100px);
+        }
+      }
+
+      /* --- NAVIGATION --- */
+      nav {
+        position: fixed;
+        top: 5px;
+        left: 5px;
+        right: 5px;
+        padding: 0;
+        z-index: 9999;
+        color: #ffffff;
+        mix-blend-mode: difference;
+        display: grid;
+        grid-template-columns: max-content 35rem max-content;
+        column-gap: 6rem;
+        align-items: start;
+        justify-content: start;
+        transition: all 0.5s ease;
+      }
+
+      @media (max-width: 800px) {
+        nav {
+          grid-template-columns: 1fr;
+          column-gap: 1rem;
+          row-gap: 0.5rem;
+          justify-content: space-between;
+          display: flex;
+          flex-wrap: wrap;
+        }
+        #nav-center {
+          display: none;
+        }
+      }
+
+      .nav-text {
+        font-size: 1rem;
+        pointer-events: auto;
+      }
+
+      #nav-center {
+        position: static;
+        pointer-events: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: left;
+      }
+
+      /* --- FOOTER --- */
+      footer {
+        position: fixed;
+        bottom: 5px;
+        left: 5px;
+        right: 5px;
+        z-index: 9999;
+        pointer-events: none;
+        color: #ffffff;
+        mix-blend-mode: difference;
+        font-size: 1rem;
+      }
+
+      #footer-text {
+        transition: opacity 0.3s ease;
+      }
+
+      /* --- ABOUT TEXT --- */
+      /* Inverted style: White color + Difference blend mode */
+      .about-bottom-text {
+        position: absolute;
+        bottom: 5px;
+        left: 5px;
+        right: 5px;
+        font-size: 1rem;
+        color: #ffffff;
+        mix-blend-mode: difference;
+        z-index: 40;
+        pointer-events: none;
+      }
+
+      .about-center-text {
+        position: absolute;
+        top: 20%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        max-width: 42rem;
+        padding: 2rem;
+        z-index: 40;
+        pointer-events: none;
+        color: #ffffff;
+        mix-blend-mode: difference;
+      }
+
+      /* --- CANVAS HELPERS --- */
+      #canvas.hidden-canvas {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #helper-text {
+        pointer-events: none;
+        z-index: 5;
+        transition: opacity 0.5s ease;
+      }
+
+      /* --- TRAIL IMAGES --- */
+      .trail-image {
+        position: absolute;
+        width: 200px;
+        height: 133px;
+        border-radius: 0;
+        overflow: hidden;
+        transform-origin: center center;
+        transform: translate(-50%, -50%);
+        transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+          opacity 0.3s ease, left 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+          top 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+        box-shadow: none;
+        z-index: 4000;
+        user-select: none;
+        will-change: transform, left, top;
+        background-color: #eee;
+      }
+
+      .slide-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+        -webkit-user-drag: none;
+      }
+
+      /* Video styling for cover/fit */
+      video.slide-image {
+        height: 94%; /* 3% top + 3% bottom = 6% total reduction */
+        top: 3%; /* Shift down by 3% to center */
+        object-fit: contain; /* Shows full video content */
+        background-color: black; /* Optional: Background for letterboxing */
+      }
+
+      body:not(.zoomed-active) .trail-image:hover {
+        transform: translate(-50%, -50%) scale(1.15);
+        z-index: 4010;
+      }
+
+      .trail-image.zoomed {
+        z-index: 5000; /* Max priority */
+        transform: translate(-50%, -50%) scale(var(--target-scale));
+      }
+
+      .trail-image.faded {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.1s ease-out;
+      }
+
+      #backdrop {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.95);
+        z-index: 50;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+      }
+
+      body.zoomed-active #backdrop {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      /* --- ANIMATIONS --- */
+      .animate-enter-right {
+        animation: slideInRight 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      }
+      .animate-exit-left {
+        animation: slideOutLeft 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      }
+      .animate-enter-left {
+        animation: slideInLeft 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      }
+      .animate-exit-right {
+        animation: slideOutRight 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      }
+
+      @keyframes slideInRight {
+        from {
+          transform: translateX(100%);
+        }
+        to {
+          transform: translateX(0%);
+        }
+      }
+      @keyframes slideOutLeft {
+        from {
+          transform: translateX(0%);
+        }
+        to {
+          transform: translateX(-100%);
+        }
+      }
+      @keyframes slideInLeft {
+        from {
+          transform: translateX(-100%);
+        }
+        to {
+          transform: translateX(0%);
+        }
+      }
+      @keyframes slideOutRight {
+        from {
+          transform: translateX(0%);
+        }
+        to {
+          transform: translateX(100%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 1. CUSTOM CURSOR -->
+    <div id="custom-cursor">!</div>
+
+    <!-- 2. EXPAND BUTTON -->
+    <button id="expand-btn" aria-label="Expand Image">&#10529;</button>
+
+    <!-- 3. TOP NAVIGATION -->
+    <nav>
+      <div id="nav-home" class="nav-text">gigergrafik</div>
+      <div id="nav-center" class="nav-text">giger@grafik.ch</div>
+      <div id="nav-about" class="nav-text">über</div>
+    </nav>
+
+    <!-- 4. FOOTER -->
+    <footer>
+      <div id="footer-text"></div>
+    </footer>
+
+    <!-- 5. ABOUT PAGE WITH MODEL-VIEWER -->
+    <div id="about-page">
+      <!-- model-viewer logic directly integrated -->
+      <!-- NOTE: src is just filename because they are in same folder -->
+      <model-viewer
+        src="scans/untitled1.glb"
+        ar
+        ar-modes="webxr scene-viewer quick-look"
+        camera-controls
+        tone-mapping="neutral"
+        shadow-intensity="0"
+        exposure="0.98"
+      >
+        <div class="progress-bar hide" slot="progress-bar">
+          <div class="update-bar"></div>
+        </div>
+        <button slot="ar-button" id="ar-button">View in your space</button>
+        <div id="ar-prompt">
+          <!-- Simple unicode hand fallback if image missing -->
+          👋
+        </div>
+      </model-viewer>
+
+      <div class="about-center-text"></div>
+      <div class="about-bottom-text">
+        I’m a designer who loves exploring the experimental side of visual
+        communication, always searching for new ways to break, stretch, and
+        rethink the boundaries of what design can be. My practice is shaped by
+        curiosity—both visually and technically. I’m drawn to unusual
+        aesthetics, generative ideas, and graphic systems that challenge
+        conventional expectations. Whether it’s through layouts that subvert
+        traditional hierarchy, typography that behaves more like a living
+        organism, or mixing analog and digital processes, I enjoy pushing my
+        work into territories that feel a little unfamiliar and a little
+        unpredictable. Activistic graphic design is also an important part of my
+        interests. I see design not only as a craft, but as a tool for dialogue
+        and reflection. I’m fascinated by how visual language can amplify
+        underrepresented voices, provoke thought, or make people aware of the
+        structures that surround them. I like to observe the world with a
+        critical eye and let those impressions influence the way I create—subtly
+        or boldly, depending on the project. On the technical side, I’m
+        increasingly curious about open-source alternatives and new creative
+        workflows. I don’t use them heavily yet, but I’m motivated to learn more
+        about how open systems, community-built tools, and unconventional
+        software can expand the way I design. The idea that creative tools can
+        be transparent, adaptable, and shared freely is something that inspires
+        me and fits well with my experimental approach.
+      </div>
+    </div>
+
+    <!-- 6. MAIN CANVAS -->
+    <div id="canvas">
+      <div
+        id="helper-text"
+        class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
+      >
+        <h1 class="text-[1rem] font-normal text-gray-900 mb-2 uppercase">
+          Interactive Trail
+        </h1>
+        <p class="text-[1rem] font-normal text-gray-500">
+          Move mouse to drop images. Click to expand & slide.
+        </p>
+      </div>
+      <div id="backdrop"></div>
+    </div>
+
+    <!-- --- JAVASCRIPT --- -->
+    <script>
+      console.log("Application initializing...");
+
+      // --- CONFIGURATION ---
+      const CONFIG = {
+        boxWidth: 200,
+        boxHeight: 133,
+        minDist: 120,
+        maxImages: 8, // LIMIT 8
+        navZoneHeight: 100,
+        mobileBoxWidth: 150,
+        mobileBoxHeight: 100,
+        mobileMinDist: 60,
+      };
+
+      // --- ASSETS (RESTORED DYNAMIC GENERATION) ---
+      const GALLERIES = [];
+      const projectFolders = [
+        "bitwusst",
+        "experimente",
+        "fotografik",
+        "layout2",
+        "london",
+        "musikplakat",
+        "paris",
+        "prepress",
+      ];
+
+      for (let i = 0; i < projectFolders.length; i++) {
+        const folder = projectFolders[i];
+        // Base cover (webp)
+        const arr = [`bilder/${folder}/${folder}cover.webp`];
+        // Slides 1 to 13 (webp)
+        for (let j = 1; j <= 13; j++) {
+          arr.push(`bilder/${folder}/${j}.webp`);
+        }
+        GALLERIES.push(arr);
+      }
+
+      const PROJECT_NAMES = projectFolders.map(
+        (name) => name.charAt(0).toUpperCase() + name.slice(1)
+      );
+
+      const CAPTIONS = [
+        "Zwischen Denken und Rechnen...",
+        "Kopfzeichnen Ein leerer Kopf...",
+        "Lampen Trio...",
+        "Irrgarten...",
+        "24 Stunden...",
+        "Gruss aus Luzern!...",
+        "Perdus...",
+        "Perdus...",
+      ];
+
+      // --- STATE ---
+      const state = {
+        lastX: 0,
+        lastY: 0,
+        count: 0,
+        hasMoved: false,
+        isZoomed: false,
+        zoomedElement: null,
+        currentGalleryIndex: 0,
+        currentSlideIndex: 0,
+        isAnimating: false,
+        aboutActive: false,
+        collisionEdges: {
+          top: false,
+          bottom: false,
+          left: false,
+          right: false,
+        },
+        isMobile: false,
+      };
+
+      // --- DOM REFERENCES ---
+      const canvas = document.getElementById("canvas");
+      const aboutPage = document.getElementById("about-page");
+      const backdrop = document.getElementById("backdrop");
+      const helperText = document.getElementById("helper-text");
+      const navCenter = document.getElementById("nav-center");
+      const navHome = document.getElementById("nav-home");
+      const navAbout = document.getElementById("nav-about");
+      const footerText = document.getElementById("footer-text");
+      const footerEl = document.querySelector("footer");
+      const customCursor = document.getElementById("custom-cursor");
+      const expandBtn = document.getElementById("expand-btn");
+
+      // --- MOBILE INIT ---
+      const checkMobile = () => {
+        if (window.innerWidth < 800) {
+          state.isMobile = true;
+          document.body.classList.add("is-mobile");
+          helperText.innerText = "Drag finger to draw. Tap box to expand.";
+        }
+      };
+      checkMobile();
+
+      // --- MODEL VIEWER EVENT LOGIC ---
+      // Integrated from your snippet
+      const onProgress = (event) => {
+        const progressBar = event.target.querySelector(".progress-bar");
+        const updatingBar = event.target.querySelector(".update-bar");
+        if (updatingBar) {
+          updatingBar.style.width = `${event.detail.totalProgress * 100}%`;
+        }
+        if (event.detail.totalProgress === 1) {
+          if (progressBar) progressBar.classList.add("hide");
+          event.target.removeEventListener("progress", onProgress);
+        } else {
+          if (progressBar) progressBar.classList.remove("hide");
+        }
+      };
+      // Attach listener to model-viewer
+      const modelViewer = document.querySelector("model-viewer");
+      if (modelViewer) {
+        modelViewer.addEventListener("progress", onProgress);
+      }
+
+      // --- HELPER FUNCTIONS ---
+      const updateInfo = (boxId) => {
+        const projName = PROJECT_NAMES[boxId - 1] || "";
+        if (navCenter) navCenter.innerText = projName;
+        const caption = CAPTIONS[boxId - 1] || "";
+        if (footerText) footerText.innerText = caption;
+      };
+
+      const resetInfo = () => {
+        if (navCenter) navCenter.innerText = "giger@grafik.ch";
+        if (footerText) footerText.innerText = "";
+      };
+
+      const resetTrail = () => {
+        const allImages = document.querySelectorAll(".trail-image");
+        allImages.forEach((img) => img.remove());
+        state.count = 0;
+        state.hasMoved = false;
+        state.lastX = 0;
+        state.lastY = 0;
+        helperText.style.opacity = "1";
+      };
+
+      // Preload neighbors
+      const preloadNeighbors = (galleryIdx, currentSlideIdx) => {
+        const gallery = GALLERIES[galleryIdx];
+        const nextIdx = (currentSlideIdx + 1) % gallery.length;
+        const prevIdx = (currentSlideIdx - 1 + gallery.length) % gallery.length;
+        new Image().src = gallery[nextIdx];
+        new Image().src = gallery[prevIdx];
+      };
+
+      // --- MEDIA LOADER (Image + Video Support) ---
+      function loadMedia(src, container, onSuccess, onError) {
+        const img = document.createElement("img");
+        img.className = "slide-image";
+
+        img.onload = () => {
+          container.appendChild(img);
+          if (onSuccess) onSuccess(img);
+        };
+
+        img.onerror = () => {
+          const vidSrc = src.replace(".webp", ".mp4");
+
+          const vid = document.createElement("video");
+          vid.className = "slide-image";
+          vid.muted = true;
+          vid.loop = true;
+          vid.autoplay = true;
+          vid.playsInline = true;
+
+          vid.onloadeddata = () => {
+            container.appendChild(vid);
+            vid.play().catch((e) => console.log("Auto-play prevented", e));
+            if (onSuccess) onSuccess(vid);
+          };
+
+          vid.onerror = () => {
+            if (onError) onError();
+          };
+
+          vid.src = vidSrc;
+        };
+
+        img.src = src;
+      }
+
+      // --- NAVIGATION EVENTS ---
+      navAbout.addEventListener("click", () => {
+        canvas.classList.add("hidden-canvas");
+        state.aboutActive = true;
+        setTimeout(() => {
+          aboutPage.classList.add("active");
+          setTimeout(() => (aboutPage.style.opacity = "1"), 10);
+        }, 400);
+      });
+
+      navHome.addEventListener("click", () => {
+        state.aboutActive = false;
+        aboutPage.style.opacity = "0";
+        setTimeout(() => {
+          aboutPage.classList.remove("active");
+          canvas.classList.remove("hidden-canvas");
+          resetTrail();
+        }, 400);
+      });
+
+      // --- EXPAND BUTTON LOGIC ---
+      expandBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (!state.zoomedElement) return;
+
+        const el = state.zoomedElement;
+        const canvasW = canvas.offsetWidth;
+        const footerRect = footerEl.getBoundingClientRect();
+        const limitBottom = footerRect.top;
+
+        // Use dynamic size
+        const currentW = parseFloat(el.style.width);
+        const currentH = parseFloat(el.style.height);
+        const halfW = currentW / 2;
+        const halfH = currentH / 2;
+
+        let newCenterX = parseFloat(el.style.left);
+        let newCenterY = parseFloat(el.style.top);
+
+        const scaleTop = (2 * newCenterY) / currentH;
+        const scaleBottom = (2 * (limitBottom - newCenterY)) / currentH;
+        const scaleLeft = (2 * newCenterX) / currentW;
+        const scaleRight = (2 * (canvasW - newCenterX)) / currentW;
+
+        let finalScale = 1;
+
+        if (state.collisionEdges.left) {
+          const sRightAnchored = canvasW / currentW;
+          finalScale = Math.min(scaleTop, scaleBottom, sRightAnchored);
+          newCenterX = (currentW * finalScale) / 2;
+        } else if (state.collisionEdges.right) {
+          const sLeftAnchored = canvasW / currentW;
+          finalScale = Math.min(scaleTop, scaleBottom, sLeftAnchored);
+          newCenterX = canvasW - (currentW * finalScale) / 2;
+        } else if (state.collisionEdges.top) {
+          const sBottomAnchored = limitBottom / currentH;
+          finalScale = Math.min(scaleLeft, scaleRight, sBottomAnchored);
+          newCenterY = (currentH * finalScale) / 2;
+        } else if (state.collisionEdges.bottom) {
+          const sTopAnchored = limitBottom / currentH;
+          finalScale = Math.min(scaleLeft, scaleRight, sTopAnchored);
+          newCenterY = limitBottom - (currentH * finalScale) / 2;
+        } else {
+          const sW = canvasW / currentW;
+          const sH = limitBottom / currentH;
+          finalScale = Math.min(sW, sH);
+          newCenterX = canvasW / 2;
+          newCenterY = limitBottom / 2;
+        }
+
+        el.style.left = newCenterX + "px";
+        el.style.top = newCenterY + "px";
+        el.style.setProperty("--target-scale", finalScale);
+
+        expandBtn.style.opacity = "0";
+        expandBtn.style.pointerEvents = "none";
+        setTimeout(() => {
+          expandBtn.style.display = "none";
+        }, 300);
+      });
+
+      // --- MOUSE MOVEMENT ---
+      document.addEventListener("mousemove", (e) => {
+        if (state.isMobile) return;
+
+        const cx = e.clientX;
+        const cy = e.clientY;
+
+        customCursor.style.left = cx + "px";
+        customCursor.style.top = cy + "px";
+
+        let rotation = 0;
+        if (state.isZoomed && state.zoomedElement) {
+          const rect = state.zoomedElement.getBoundingClientRect();
+          if (
+            cx >= rect.left &&
+            cx <= rect.right &&
+            cy >= rect.top &&
+            cy <= rect.bottom
+          ) {
+            const relX = cx - rect.left;
+            rotation = relX > rect.width / 2 ? 90 : 270;
+          }
+        }
+        customCursor.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
+
+        handleTrailLogic(cx, cy);
+      });
+
+      // --- TOUCH MOVEMENT (Mobile) ---
+      document.addEventListener(
+        "touchmove",
+        (e) => {
+          if (e.target.closest("model-viewer") || state.isZoomed) return;
+          if (!state.isMobile) return;
+
+          if (!state.isZoomed) {
+            e.preventDefault();
+          }
+
+          const touch = e.touches[0];
+          const cx = touch.clientX;
+          const cy = touch.clientY;
+
+          customCursor.style.left = cx + "px";
+          customCursor.style.top = cy + "px";
+
+          handleTrailLogic(cx, cy);
+        },
+        { passive: false }
+      );
+
+      // --- SHARED TRAIL LOGIC ---
+      function handleTrailLogic(cx, cy) {
+        if (cy < CONFIG.navZoneHeight) return;
+
+        if (state.isZoomed || canvas.classList.contains("hidden-canvas"))
+          return;
+
+        if (!state.hasMoved) {
+          helperText.style.opacity = "0";
+          state.hasMoved = true;
+        }
+
+        const dist = Math.hypot(cx - state.lastX, cy - state.lastY);
+
+        // UPDATED: Use mobile distance if on mobile
+        const limit = state.isMobile ? CONFIG.mobileMinDist : CONFIG.minDist;
+
+        if (dist > limit) {
+          createBox(cx, cy);
+          state.lastX = cx;
+          state.lastY = cy;
+        }
+      }
+
+      // --- CLICK HANDLING ---
+      canvas.addEventListener("click", (e) => {
+        const target = e.target.closest(".trail-image");
+        if (target && !state.isZoomed) {
+          zoomIn(target);
+          e.stopPropagation();
+          return;
+        }
+        if (state.isZoomed && target && target.classList.contains("zoomed")) {
+          handleSlideshowClick(e, target);
+          e.stopPropagation();
+        }
+      });
+
+      backdrop.addEventListener("click", zoomOut);
+
+      function createBox(x, y) {
+        if (state.count >= CONFIG.maxImages) return;
+        state.count++;
+        const boxId = state.count;
+        const container = document.createElement("div");
+        container.className = "trail-image";
+
+        // UPDATED: Use mobile dimensions if on mobile
+        const width = state.isMobile ? CONFIG.mobileBoxWidth : CONFIG.boxWidth;
+        const height = state.isMobile
+          ? CONFIG.mobileBoxHeight
+          : CONFIG.boxHeight;
+        container.style.width = width + "px";
+        container.style.height = height + "px";
+
+        const galleryIndex = (state.count - 1) % GALLERIES.length;
+        container.dataset.galleryIndex = galleryIndex;
+        container.dataset.slideIndex = 0;
+        container.dataset.boxId = boxId;
+
+        // USE loadMedia for Cover (Supports .webp or .mp4 fallback)
+        const coverUrl = GALLERIES[galleryIndex][0];
+        loadMedia(
+          coverUrl,
+          container,
+          (el) => {
+            /* Loaded */
+          },
+          () => {
+            // Fallback style if cover missing
+            container.style.backgroundColor = "#e5e7eb";
+            container.style.border = "1px solid #9ca3af";
+          }
+        );
+
+        container.style.left = `${x}px`;
+        container.style.top = `${y}px`;
+        container.addEventListener("mouseenter", () => {
+          if (!state.isZoomed) {
+            const projName = PROJECT_NAMES[boxId - 1] || "";
+            if (navCenter) navCenter.innerText = projName;
+          }
+        });
+        container.addEventListener("mouseleave", () => {
+          if (!state.isZoomed) {
+            if (navCenter) navCenter.innerText = "giger@grafik.ch";
+          }
+        });
+        canvas.appendChild(container);
+      }
+
+      function zoomIn(element) {
+        state.isZoomed = true;
+        state.zoomedElement = element;
+        state.currentGalleryIndex = parseInt(element.dataset.galleryIndex);
+        state.currentSlideIndex = parseInt(element.dataset.slideIndex);
+        updateInfo(parseInt(element.dataset.boxId));
+
+        preloadNeighbors(state.currentGalleryIndex, state.currentSlideIndex);
+
+        document.body.classList.add("zoomed-active");
+
+        // UPDATED: Hide other trail images
+        const siblings = document.querySelectorAll(".trail-image");
+        siblings.forEach((sib) => {
+          if (sib !== element) sib.classList.add("faded");
+        });
+
+        // MOBILE SCALING
+        if (state.isMobile) {
+          const vpW = window.visualViewport
+            ? window.visualViewport.width
+            : document.documentElement.clientWidth;
+
+          // UPDATED: Calculate scale based on current element width (which is smaller on mobile)
+          const currentW = parseFloat(element.style.width);
+          const scale = vpW / currentW;
+
+          const newCenterX = vpW / 2;
+
+          // Center logic: Vertically center to handle long phones
+          let newCenterY = parseFloat(element.style.top);
+
+          // Calculate collision with footer text
+          const scaledH = parseFloat(element.style.height) * scale;
+          const halfH = scaledH / 2;
+
+          const footerRect = footerEl.getBoundingClientRect();
+          const limitBottom = footerRect.top - 10;
+
+          if (newCenterY + halfH > limitBottom) {
+            newCenterY = limitBottom - halfH;
+          }
+
+          element.style.left = newCenterX + "px";
+          element.style.top = newCenterY + "px";
+          element.style.setProperty("--target-scale", scale);
+          element.classList.add("zoomed");
+          addSwipeListener(element);
+          return;
+        }
+
+        // DESKTOP SCALING
+        const canvasW = canvas.offsetWidth;
+        const canvasH = canvas.offsetHeight;
+        const footerRect = footerEl.getBoundingClientRect();
+        const limitBottom = footerRect.top;
+
+        // Use dynamic size
+        const currentW = parseFloat(element.style.width);
+        const currentH = parseFloat(element.style.height);
+        const halfW = currentW / 2;
+        const halfH = currentH / 2;
+
+        const centerX = parseFloat(element.style.left);
+        const centerY = parseFloat(element.style.top);
+
+        const distTop = centerY;
+        const distBottom = limitBottom - centerY;
+        const distLeft = centerX;
+        const distRight = canvasW - centerX;
+
+        const sTop = distTop / halfH;
+        const sBottom = distBottom / halfH;
+        const sLeft = distLeft / halfW;
+        const sRight = distRight / halfW;
+
+        const finalScale = Math.min(sTop, sBottom, sLeft, sRight);
+
+        const eps = 0.01;
+        state.collisionEdges = {
+          top: Math.abs(finalScale - sTop) < eps,
+          bottom: Math.abs(finalScale - sBottom) < eps,
+          left: Math.abs(finalScale - sLeft) < eps,
+          right: Math.abs(finalScale - sRight) < eps,
+        };
+
+        element.style.setProperty("--target-scale", finalScale);
+        element.classList.add("zoomed");
+
+        expandBtn.style.display = "none";
+        expandBtn.style.opacity = "0";
+        expandBtn.style.pointerEvents = "auto";
+
+        if (finalScale < 3.5) {
+          expandBtn.style.display = "flex";
+          expandBtn.style.left = centerX + "px";
+          expandBtn.style.top = centerY + "px";
+          setTimeout(() => {
+            expandBtn.style.opacity = "1";
+          }, 50);
+        }
+      }
+
+      // MOBILE SWIPE
+      function addSwipeListener(element) {
+        let touchStartX = 0;
+        let touchEndX = 0;
+        const handleTouchStart = (e) => {
+          touchStartX = e.changedTouches[0].screenX;
+        };
+        const handleTouchEnd = (e) => {
+          touchEndX = e.changedTouches[0].screenX;
+          if (touchEndX < touchStartX - 50) changeSlide(1);
+          if (touchEndX > touchStartX + 50) changeSlide(-1);
+        };
+        element.addEventListener("touchstart", handleTouchStart, {
+          passive: true,
+        });
+        element.addEventListener("touchend", handleTouchEnd, { passive: true });
+      }
+
+      function handleSlideshowClick(e, element) {
+        if (state.isAnimating) return;
+        const rect = element.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const width = rect.width;
+        if (clickX > width / 2) changeSlide(1);
+        else changeSlide(-1);
+      }
+
+      function changeSlide(direction) {
+        if (!state.zoomedElement) return;
+        if (state.isAnimating) return;
+
+        state.isAnimating = true; // Lock input
+        const gallery = GALLERIES[state.currentGalleryIndex];
+
+        let attemptIndex = state.currentSlideIndex + direction;
+
+        if (attemptIndex >= gallery.length) attemptIndex = 0;
+        if (attemptIndex < 0) attemptIndex = gallery.length - 1;
+
+        const maxAttempts = gallery.length;
+        let attempts = 0;
+
+        function tryLoad(index) {
+          attempts++;
+          if (attempts > maxAttempts) {
+            state.isAnimating = false;
+            return;
+          }
+
+          const url = gallery[index];
+          // Use loadMedia helper
+          loadMedia(
+            url,
+            state.zoomedElement,
+            (newEl) => {
+              const currentEl = state.zoomedElement.querySelector(
+                ".slide-image:last-of-type"
+              );
+              const allSlides =
+                state.zoomedElement.querySelectorAll(".slide-image");
+              const oldEl =
+                allSlides.length > 1 ? allSlides[allSlides.length - 2] : null;
+
+              // Force Reflow to ensure transition happens
+              void newEl.offsetWidth;
+
+              if (direction === 1) {
+                newEl.classList.add("animate-enter-right");
+                if (oldEl) oldEl.classList.add("animate-exit-left");
+              } else {
+                newEl.classList.add("animate-enter-left");
+                if (oldEl) oldEl.classList.add("animate-exit-right");
+              }
+
+              state.currentSlideIndex = index;
+              state.zoomedElement.dataset.slideIndex = index;
+
+              // PRELOAD NEXT AFTER LOAD
+              preloadNeighbors(state.currentGalleryIndex, index);
+
+              setTimeout(() => {
+                if (oldEl) oldEl.remove();
+                newEl.classList.remove(
+                  "animate-enter-right",
+                  "animate-enter-left"
+                );
+                state.isAnimating = false;
+              }, 500);
+            },
+            () => {
+              let nextIdx = index + direction;
+              if (nextIdx >= gallery.length) nextIdx = 0;
+              if (nextIdx < 0) nextIdx = gallery.length - 1;
+              tryLoad(nextIdx);
+            }
+          );
+        }
+
+        tryLoad(attemptIndex);
+      }
+
+      function zoomOut() {
+        state.isZoomed = false;
+        state.zoomedElement = null;
+        resetInfo();
+        expandBtn.style.opacity = "0";
+        expandBtn.style.display = "none";
+        document.body.classList.remove("zoomed-active");
+        const zoomedEl = document.querySelector(".trail-image.zoomed");
+        if (zoomedEl) {
+          zoomedEl.classList.remove("zoomed");
+          setTimeout(() => {
+            if (zoomedEl) zoomedEl.style.removeProperty("--target-scale");
+          }, 500);
+        }
+        const fadedEls = document.querySelectorAll(".trail-image.faded");
+        fadedEls.forEach((el) => el.remove());
+        setTimeout(() => {
+          if (zoomedEl) zoomedEl.remove();
+          const allImages = document.querySelectorAll(".trail-image");
+          allImages.forEach((img) => img.remove());
+          state.count = 0;
+          state.hasMoved = false;
+          state.lastX = 0;
+          state.lastY = 0;
+          helperText.style.opacity = "1";
+        }, 550);
+      }
+    </script>
+  </body>
+</html>
