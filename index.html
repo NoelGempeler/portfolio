@@ -4,8 +4,9 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Mobile Boxes visually sized to 120px (via 0.6 scale of 200px base).
-  - Mobile Scaling now centers on X-axis (fills width) while preserving Y-axis position.
+  - Mobile Scaling: Added boundary clamping.
+    - Top: Images shifted down to touch top of screen (0px) if too high.
+    - Bottom: Images shifted up to avoid overlapping footer Project Texts.
 -->
   <head>
     <meta charset="utf-8" />
@@ -80,6 +81,7 @@
         transform: translate(-50%, -50%);
         transition: transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
         will-change: transform, top, left;
+        /* Ensure centered text for arrows */
         text-align: center;
         width: 3rem;
         height: 3rem;
@@ -88,6 +90,7 @@
         justify-content: center;
       }
 
+      /* STRICTLY HIDE CURSOR ON MOBILE */
       body.is-mobile #custom-cursor {
         display: none !important;
         visibility: hidden !important;
@@ -302,13 +305,14 @@
 
       #nav-center {
         position: static;
-        pointer-events: auto;
+        pointer-events: auto; /* Allow clicks on the link */
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         text-align: left;
       }
 
+      /* Link styling for email */
       #nav-center a {
         text-decoration: none;
         color: inherit;
@@ -326,7 +330,7 @@
         color: #ffffff;
         mix-blend-mode: difference;
         font-size: 1rem;
-        line-height: 1.1;
+        line-height: 1.15;
       }
 
       #footer-text {
@@ -340,7 +344,7 @@
         left: 5px;
         right: 5px;
         font-size: 1rem;
-        line-height: 1.1;
+        line-height: 1.35;
         text-align: justify;
         color: #ffffff;
         mix-blend-mode: difference;
@@ -348,6 +352,7 @@
         pointer-events: none;
       }
 
+      /* Mobile specific adjustment for About Text */
       @media (max-width: 800px) {
         .about-bottom-text {
           text-align: left;
@@ -393,7 +398,7 @@
         overflow: hidden;
         transform-origin: center center;
         transform: translate(-50%, -50%);
-        transform: translate(-50%, -50%) scale(var(--idle-scale, 1));
+        /* Transition is key for smooth desktop movement, but might fight manual touch moves */
         transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
           opacity 0.3s ease, left 0.5s cubic-bezier(0.23, 1, 0.32, 1),
           top 0.5s cubic-bezier(0.23, 1, 0.32, 1);
@@ -401,11 +406,9 @@
         z-index: 4000;
         user-select: none;
         background-color: #eee;
-        /* Removed will-change to ensure sharp scaling */
-        backface-visibility: hidden;
-        -webkit-backface-visibility: hidden;
       }
 
+      /* UPDATED: Class to disable transition during manual dragging on mobile */
       .trail-image.no-transition {
         transition: none !important;
       }
@@ -419,7 +422,6 @@
         object-fit: cover;
         pointer-events: none;
         -webkit-user-drag: none;
-        transition: transform 0s;
       }
 
       /* Video styling */
@@ -436,7 +438,7 @@
       }
 
       .trail-image.zoomed {
-        z-index: 5000;
+        z-index: 5000; /* Max priority */
         transform: translate(-50%, -50%) scale(var(--target-scale));
       }
 
@@ -510,6 +512,35 @@
           transform: translateX(100%);
         }
       }
+
+      /* --- LOADING SCREEN --- */
+      #loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: white;
+        z-index: 99999; /* Highest priority */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px; /* Spacing between rectangles */
+        pointer-events: auto;
+        transition: opacity 0.5s ease;
+      }
+
+      .loading-rect {
+        width: 5px;
+        height: 5px;
+        border: 1px solid black;
+        background: transparent;
+        transition: background-color 0.2s ease;
+      }
+
+      .loading-rect.filled {
+        background-color: black;
+      }
     </style>
   </head>
   <body>
@@ -530,6 +561,7 @@
     <!-- 3. TOP NAVIGATION -->
     <nav>
       <div id="nav-home" class="nav-text">gigergrafik</div>
+      <!-- Email Link -->
       <div id="nav-center" class="nav-text">
         <a href="mailto:giger@grafik.ch" target="_blank">giger@grafik.ch</a>
       </div>
@@ -543,6 +575,7 @@
 
     <!-- 5. ABOUT PAGE WITH MODEL-VIEWER -->
     <div id="about-page">
+      <!-- model-viewer logic directly integrated -->
       <model-viewer
         src="untitled1.glb"
         ar
@@ -616,9 +649,10 @@
         minDist: 120,
         maxImages: 8,
         navZoneHeight: 100,
-        // UPDATED: 0.6 scale of 200px = 120px visual size
-        mobileScale: 0.6,
+        mobileScale: 0.75,
         mobileMinDist: 60,
+        mobileBoxWidth: 120, // 120px on mobile as requested before
+        mobileBoxHeight: 80,
       };
 
       // --- ASSETS ---
@@ -655,16 +689,15 @@
         "Perdus?",
         "Gruss aus Luzern!",
       ];
-
       const CAPTIONS = [
-        "Zwischen Denken und Rechnen...",
-        "Kopfzeichnen Ein leerer Kopf...",
-        "Lampen Trio...",
-        "Irrgarten...",
-        "24 Stunden...",
-        "Gruss aus Luzern!...",
-        "Perdus...",
-        "Perdus...",
+        "Bitwusst? Zwischen Denken und Rechnen flimmert ein schmaler Streifen Bewusstsein. Was trennt das Erkennen vom Erfassen, das Fühlen vom Verarbeiten? Vielleicht ist Bewusstsein kein Ort, sondern ein Übergang – ein leises Pulsieren zwischen Mensch und Maschine. Bitwusst? fragt, ob das Menschliche im Digitalen erlischt oder dort, inmitten von Algorithmen und Zufall, eine neue Form des Selbst erwacht – nicht aus Fleisch, sondern aus Verbindung.",
+        "experimente chundno trust",
+        "Lampen Trio Mein erstes Layout-Projekt: ein Katalog über Designerlampen. Dabei lernte ich Raster, Mikrotypografie und das Prinzip, gutes Design beruht auf Logik, nicht auf Zufall. Inspiriert von Josef Müller-Brockmann baute ich ein klares, rhythmisches Layout auf, das Raum und Typografie in Balance bringt. Lampen Trio war mein Einstieg in das Denken in Systemen und ein Crashkurs in grafischer Präzision.",
+        "fotografik chund auno trust",
+        "24 Stunden? Ein Tag, eine Klasse, unzählige Geschichten. Im interdisziplinären Projekt 24 Stunden entwickelte ich ein Layoutkonzept, das Zeit in Struktur übersetzt: ein Raster mit 24 Zeilen und 60 Spalten – jede Stunde, jede Minute. So fliessen die Bilder der Klasse wie ein Strom durch das Buch, während der Text verdrängt, verschoben und neu geordnet wurde. Eine visuelle Studie über Zeit, Rhythmus und das Verhältnis von Inhalt und Form.",
+        "musikplakatchundno trussssstt",
+        "Perdus? In einer Stadt, in der barocke Pracht auf soziale Unsichtbarkeit trifft, untersucht Perdus die Kluft zwischen Macht und Marginalisierung. Ausgehend der Place des Victoires verbinden sich visuelle Scans, historische Bezüge und sozialkritische Texte zu einem stillen Dialog über Verfall, Würde und Ungleichheit. Die Publikation lädt ein, Paris nicht nur als architektonisches Erbe zu sehen, sondern als Bühne der sozialen Fragen unserer Zeit.",
+        "Gruss aus Luzern! Kein Pilatus, keine Kapellbrücke – dafür Emil Manser. Für diese Postkarte wollte ich das unperfekte Luzern zeigen: roh, laut und echt. Ich programmierte mit Python einen Generator, der aus Mansers Schildertexten ein neues Porträt formte. So entstand ein digitales Bild, das Philosophie, Strasse und Code verbindet – ein Gruss aus dem echten Luzern, nicht dem touristischen.",
       ];
 
       // --- STATE ---
@@ -874,7 +907,6 @@
         e.stopPropagation();
         if (!state.zoomedElement) return;
         // Desktop expand logic
-        // ...
       });
 
       // --- MOUSE MOVEMENT ---
@@ -975,12 +1007,15 @@
         const container = document.createElement("div");
         container.className = "trail-image";
 
-        // ALWAYS use 200px for layout, scale visually for mobile
-        const width = CONFIG.boxWidth;
-        const height = CONFIG.boxHeight;
+        // UPDATED: Use mobile dimensions if on mobile
+        const width = state.isMobile ? CONFIG.mobileBoxWidth : CONFIG.boxWidth;
+        const height = state.isMobile
+          ? CONFIG.mobileBoxHeight
+          : CONFIG.boxHeight;
         container.style.width = width + "px";
         container.style.height = height + "px";
 
+        // Apply Visual Scale for Mobile (using transform)
         if (state.isMobile) {
           container.style.setProperty("--idle-scale", CONFIG.mobileScale);
         } else {
@@ -1005,7 +1040,6 @@
 
         container.style.left = `${x}px`;
         container.style.top = `${y}px`;
-
         container.addEventListener("mouseenter", () => {
           if (!state.isZoomed) {
             const projName = PROJECT_NAMES[boxId - 1] || "";
@@ -1036,22 +1070,29 @@
         // MOBILE SCALING
         if (state.isMobile) {
           const vpW = window.innerWidth;
-          // element.style.width is 200px always now
           const currentW = parseFloat(element.style.width);
           const scale = (vpW / currentW) * 1.005;
           state.currentMobileScale = scale;
 
           const newCenterX = vpW / 2;
 
-          // Preserve Y position
+          // Center logic for mobile with clamping
           let newCenterY = parseFloat(element.style.top);
           const scaledH = parseFloat(element.style.height) * scale;
           const halfH = scaledH / 2;
 
           const footerRect = footerEl.getBoundingClientRect();
           const limitBottom = footerRect.top - 10;
+
+          // 1. Check Bottom Collision
           if (newCenterY + halfH > limitBottom) {
             newCenterY = limitBottom - halfH;
+          }
+
+          // 2. Check Top Collision (0 is top of window)
+          if (newCenterY - halfH < 0) {
+            // Shift down so top edge touches 0
+            newCenterY = 0 + halfH;
           }
 
           element.style.left = newCenterX + "px";
@@ -1081,7 +1122,12 @@
         const sLeft = distLeft / (currentW / 2);
         const sRight = distRight / (currentW / 2);
         const finalScale = Math.min(sTop, sBottom, sLeft, sRight);
-
+        state.collisionEdges = {
+          top: Math.abs(finalScale - sTop) < 0.01,
+          bottom: Math.abs(finalScale - sBottom) < 0.01,
+          left: Math.abs(finalScale - sLeft) < 0.01,
+          right: Math.abs(finalScale - sRight) < 0.01,
+        };
         element.style.setProperty("--target-scale", finalScale);
         element.classList.add("zoomed");
 
@@ -1170,6 +1216,7 @@
               const oldEl =
                 allSlides.length > 1 ? allSlides[allSlides.length - 2] : null;
               void newEl.offsetWidth;
+
               if (direction === 1) {
                 newEl.classList.add("animate-enter-right");
                 if (oldEl) oldEl.classList.add("animate-exit-left");
@@ -1207,7 +1254,6 @@
         expandBtn.style.opacity = "0";
         expandBtn.style.display = "none";
         document.body.classList.remove("zoomed-active");
-
         const zoomedEl = document.querySelector(".trail-image.zoomed");
         if (zoomedEl) {
           zoomedEl.classList.remove("zoomed");
