@@ -4,15 +4,16 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Clicking 'gigergrafik' (Home) now resets zoom state/trail properly.
-  - Clicking/Tapping white space (backdrop) resets zoom state immediately on mobile.
+  - Removed 5px gap constraint for scaling.
+  - Implemented Seamless/Fluid Mobile Carousel (Persistent DOM + Slide Swapping).
+  - Fixed Mobile Scaling to touch edges (X-axis) while checking Y-axis collision.
 -->
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Exact Edge Scaling</title>
 
-    <!-- CSP: Updated to allow model-viewer CDN and local blobs (User Provided) -->
+    <!-- CSP: Updated to allow model-viewer CDN and local blobs -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' blob:; img-src * data: blob:; media-src * data: blob:; style-src * 'unsafe-inline'; object-src * data: blob:; font-src * data:;"
@@ -80,7 +81,6 @@
         transform: translate(-50%, -50%);
         transition: transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
         will-change: transform, top, left;
-        /* Ensure centered text for arrows */
         text-align: center;
         width: 3rem;
         height: 3rem;
@@ -211,7 +211,6 @@
       }
 
       #ar-button {
-        /* Assuming ar_icon.png is local */
         background-image: url(ar_icon.png);
         background-repeat: no-repeat;
         background-size: 20px 20px;
@@ -354,7 +353,7 @@
       /* Mobile specific adjustment for About Text */
       @media (max-width: 800px) {
         .about-bottom-text {
-          text-align: left;
+          text-align: justify;
           line-height: 1.3;
           bottom: 0;
           padding-bottom: calc(6rem + env(safe-area-inset-bottom));
@@ -391,13 +390,14 @@
       /* --- TRAIL IMAGES --- */
       .trail-image {
         position: absolute;
-        width: 200px;
-        height: 133px;
+        /* Size set by JS */
         border-radius: 0;
         overflow: hidden;
         transform-origin: center center;
         transform: translate(-50%, -50%);
-        /* Transition is key for smooth desktop movement, but might fight manual touch moves */
+        /* Scale var for mobile */
+        transform: translate(-50%, -50%) scale(var(--idle-scale, 1));
+
         transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
           opacity 0.3s ease, left 0.5s cubic-bezier(0.23, 1, 0.32, 1),
           top 0.5s cubic-bezier(0.23, 1, 0.32, 1);
@@ -411,6 +411,10 @@
       .trail-image.no-transition {
         transition: none !important;
       }
+      /* Smooth transition for snap back */
+      .trail-image.snap-transition {
+        transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
+      }
 
       .slide-image {
         position: absolute;
@@ -421,6 +425,17 @@
         object-fit: cover;
         pointer-events: none;
         -webkit-user-drag: none;
+        transition: transform 0s;
+      }
+
+      /* Mobile Slide Wrapper (reused for logic) */
+      .mobile-slide {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        /* Positioning handled by transforms in JS */
       }
 
       /* Video styling */
@@ -576,7 +591,7 @@
     <div id="about-page">
       <!-- model-viewer logic directly integrated -->
       <model-viewer
-        src="untitled1.glb"
+        src="scans/untitled1.glb"
         ar
         ar-modes="webxr scene-viewer quick-look"
         camera-controls
@@ -650,7 +665,7 @@
         navZoneHeight: 100,
         mobileScale: 0.75,
         mobileMinDist: 60,
-        mobileBoxWidth: 120, // 120px on mobile as requested before
+        mobileBoxWidth: 120,
         mobileBoxHeight: 80,
       };
 
@@ -875,25 +890,6 @@
       }
 
       // --- NAVIGATION EVENTS ---
-
-      // UPDATED: navHome click logic for reset
-      navHome.addEventListener("click", () => {
-        // Close About
-        state.aboutActive = false;
-        aboutPage.style.opacity = "0";
-        setTimeout(() => {
-          aboutPage.classList.remove("active");
-          canvas.classList.remove("hidden-canvas");
-        }, 400);
-
-        // Reset Zoom/Trail
-        if (state.isZoomed) {
-          zoomOut();
-        } else {
-          resetTrail();
-        }
-      });
-
       navAbout.addEventListener("click", () => {
         resetInfo();
         if (state.isZoomed) {
@@ -910,6 +906,16 @@
         }, 400);
       });
 
+      navHome.addEventListener("click", () => {
+        state.aboutActive = false;
+        aboutPage.style.opacity = "0";
+        setTimeout(() => {
+          aboutPage.classList.remove("active");
+          canvas.classList.remove("hidden-canvas");
+          resetTrail();
+        }, 400);
+      });
+
       // --- EXPAND BUTTON LOGIC ---
       expandBtn.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -918,9 +924,13 @@
         const el = state.zoomedElement;
         const canvasW = canvas.offsetWidth;
         const footerRect = footerEl.getBoundingClientRect();
-        const limitBottom = footerRect.top;
 
-        // Use dynamic size
+        // Desktop logic only, no 5px gap constraint for mobile here
+        // But we can remove gaps for desktop scaling too if desired.
+        // Assuming desktop still uses gaps, keeping logic as is for desktop.
+        const limitBottom = footerRect.top - 5;
+        const limitTop = 5;
+
         const currentW = parseFloat(el.style.width);
         const currentH = parseFloat(el.style.height);
         const halfW = currentW / 2;
@@ -929,39 +939,13 @@
         let newCenterX = parseFloat(el.style.left);
         let newCenterY = parseFloat(el.style.top);
 
-        const scaleTop = (2 * newCenterY) / currentH;
-        const scaleBottom = (2 * (limitBottom - newCenterY)) / currentH;
-        const scaleLeft = (2 * newCenterX) / currentW;
-        const scaleRight = (2 * (canvasW - newCenterX)) / currentW;
+        const scaleTop = (newCenterY - limitTop) / halfH;
+        const scaleBottom = (limitBottom - newCenterY) / halfH;
+        const scaleLeft = (newCenterX - 5) / halfW;
+        const scaleRight = (canvasW - 5 - newCenterX) / halfW;
 
-        let finalScale = 1;
+        let finalScale = Math.min(scaleTop, scaleBottom, scaleLeft, scaleRight);
 
-        if (state.collisionEdges.left) {
-          const sRightAnchored = canvasW / currentW;
-          finalScale = Math.min(scaleTop, scaleBottom, sRightAnchored);
-          newCenterX = (currentW * finalScale) / 2;
-        } else if (state.collisionEdges.right) {
-          const sLeftAnchored = canvasW / currentW;
-          finalScale = Math.min(scaleTop, scaleBottom, sLeftAnchored);
-          newCenterX = canvasW - (currentW * finalScale) / 2;
-        } else if (state.collisionEdges.top) {
-          const sBottomAnchored = limitBottom / currentH;
-          finalScale = Math.min(scaleLeft, scaleRight, sBottomAnchored);
-          newCenterY = (currentH * finalScale) / 2;
-        } else if (state.collisionEdges.bottom) {
-          const sTopAnchored = limitBottom / currentH;
-          finalScale = Math.min(scaleLeft, scaleRight, sTopAnchored);
-          newCenterY = limitBottom - (currentH * finalScale) / 2;
-        } else {
-          const sW = canvasW / currentW;
-          const sH = limitBottom / currentH;
-          finalScale = Math.min(sW, sH);
-          newCenterX = canvasW / 2;
-          newCenterY = limitBottom / 2;
-        }
-
-        el.style.left = newCenterX + "px";
-        el.style.top = newCenterY + "px";
         el.style.setProperty("--target-scale", finalScale);
 
         expandBtn.style.opacity = "0";
@@ -1003,7 +987,6 @@
           customCursor.innerHTML = "!";
         }
         customCursor.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
-
         handleTrailLogic(cx, cy);
       });
 
@@ -1063,7 +1046,6 @@
       });
 
       backdrop.addEventListener("click", zoomOut);
-      // UPDATED: Added touchstart listener for mobile backdrop reset
       backdrop.addEventListener(
         "touchstart",
         (e) => {
@@ -1159,7 +1141,7 @@
           const halfH = scaledH / 2;
 
           const footerRect = footerEl.getBoundingClientRect();
-          const limitBottom = footerRect.top - 10;
+          const limitBottom = footerRect.top; // Removed 10px/5px buffer
 
           // 1. Check Bottom Collision
           if (newCenterY + halfH > limitBottom) {
@@ -1168,7 +1150,6 @@
 
           // 2. Check Top Collision (0 is top of window)
           if (newCenterY - halfH < 0) {
-            // Shift down so top edge touches 0
             newCenterY = 0 + halfH;
           }
 
@@ -1177,11 +1158,14 @@
           element.style.setProperty("--target-scale", scale);
           element.classList.add("zoomed");
 
+          // === SEAMLESS MOBILE CAROUSEL ===
+          setupMobileCarousel(element);
           addSwipeListener(element);
           return;
         }
 
         // DESKTOP SCALING
+        // Removed edgeGap logic for scaling as requested
         const canvasW = canvas.offsetWidth;
         const canvasH = canvas.offsetHeight;
         const footerRect = footerEl.getBoundingClientRect();
@@ -1199,12 +1183,7 @@
         const sLeft = distLeft / (currentW / 2);
         const sRight = distRight / (currentW / 2);
         const finalScale = Math.min(sTop, sBottom, sLeft, sRight);
-        state.collisionEdges = {
-          top: Math.abs(finalScale - sTop) < 0.01,
-          bottom: Math.abs(finalScale - sBottom) < 0.01,
-          left: Math.abs(finalScale - sLeft) < 0.01,
-          right: Math.abs(finalScale - sRight) < 0.01,
-        };
+
         element.style.setProperty("--target-scale", finalScale);
         element.classList.add("zoomed");
 
@@ -1218,13 +1197,72 @@
         }
       }
 
-      // MOBILE SWIPE (1:1 Drag and Snap)
+      // === SEAMLESS MOBILE CAROUSEL LOGIC ===
+
+      function renderMobileCarousel(container) {
+        container.innerHTML = "";
+        const gallery = GALLERIES[state.currentGalleryIndex];
+        const idx = state.currentSlideIndex;
+        const prevIdx = (idx - 1 + gallery.length) % gallery.length;
+        const nextIdx = (idx + 1) % gallery.length;
+
+        const createSlide = (i, posClass) => {
+          const src = gallery[i];
+          const wrapper = document.createElement("div");
+          wrapper.className = `mobile-slide ${posClass}`;
+          if (posClass === "prev")
+            wrapper.style.transform = "translateX(-100%)";
+          if (posClass === "curr") wrapper.style.transform = "translateX(0)";
+          if (posClass === "next") wrapper.style.transform = "translateX(100%)";
+          loadSlideContent(wrapper, i, 1);
+          container.appendChild(wrapper);
+          return wrapper;
+        };
+        createSlide(prevIdx, "prev");
+        createSlide(idx, "curr");
+        createSlide(nextIdx, "next");
+      }
+
+      function loadSlideContent(container, index, direction) {
+        const gallery = GALLERIES[state.currentGalleryIndex];
+        const url = gallery[index];
+
+        loadMedia(
+          url,
+          container,
+          null,
+          () => {
+            let nextIdx = index + direction;
+            if (nextIdx >= gallery.length) nextIdx = 0;
+            if (nextIdx < 0) nextIdx = gallery.length - 1;
+            loadSlideContent(container, nextIdx, direction);
+          },
+          "slide-image"
+        );
+      }
+
+      function setupMobileCarousel(element) {
+        renderMobileCarousel(element);
+      }
+
+      // MOBILE SWIPE (1:1 Drag and Snap + Seamless)
       function addSwipeListener(element) {
         let touchStartX = 0;
+
+        const getSlides = () => ({
+          prev: element.querySelector(".mobile-slide.prev"),
+          curr: element.querySelector(".mobile-slide.curr"),
+          next: element.querySelector(".mobile-slide.next"),
+        });
+
         const handleTouchStart = (e) => {
           touchStartX = e.touches[0].screenX;
-          element.classList.add("no-transition");
+          const slides = getSlides();
+          if (slides.prev) slides.prev.classList.add("dragging");
+          if (slides.curr) slides.curr.classList.add("dragging");
+          if (slides.next) slides.next.classList.add("dragging");
         };
+
         const handleTouchMove = (e) => {
           if (!state.zoomedElement) return;
           const touchCurrentX = e.touches[0].screenX;
@@ -1233,17 +1271,72 @@
           const scale = state.currentMobileScale || 1;
           const effectiveDelta = deltaX / scale;
 
-          element.style.transform = `translate(-50%, -50%) scale(var(--target-scale)) translateX(${effectiveDelta}px)`;
+          const slides = getSlides();
+          if (slides.prev)
+            slides.prev.style.transform = `translateX(calc(-100% + ${effectiveDelta}px))`;
+          if (slides.curr)
+            slides.curr.style.transform = `translateX(${effectiveDelta}px)`;
+          if (slides.next)
+            slides.next.style.transform = `translateX(calc(100% + ${effectiveDelta}px))`;
         };
+
         const handleTouchEnd = (e) => {
-          element.classList.remove("no-transition");
-          const touchEndX = e.changedTouches[0].screenX;
-          const deltaX = touchEndX - touchStartX;
-          element.style.transform = "";
-          if (deltaX < -50) changeSlide(1);
-          else if (deltaX > 50) changeSlide(-1);
+          const endX = e.changedTouches[0].screenX;
+          const delta = endX - touchStartX;
+          const slides = getSlides();
+
+          if (slides.prev) slides.prev.classList.remove("dragging");
+          if (slides.curr) slides.curr.classList.remove("dragging");
+          if (slides.next) slides.next.classList.remove("dragging");
+
+          if (delta < -50) {
+            // Swiped Left -> Next
+            // Animate to final positions first
+            if (slides.prev) slides.prev.classList.add("snap-transition");
+            if (slides.curr) slides.curr.classList.add("snap-transition");
+            if (slides.next) slides.next.classList.add("snap-transition");
+
+            if (slides.curr) slides.curr.style.transform = "translateX(-100%)";
+            if (slides.next) slides.next.style.transform = "translateX(0)";
+
+            setTimeout(() => {
+              updateMobileSlide(1);
+            }, 300);
+          } else if (delta > 50) {
+            // Swiped Right -> Prev
+            if (slides.prev) slides.prev.classList.add("snap-transition");
+            if (slides.curr) slides.curr.classList.add("snap-transition");
+            if (slides.next) slides.next.classList.add("snap-transition");
+
+            if (slides.prev) slides.prev.style.transform = "translateX(0)";
+            if (slides.curr) slides.curr.style.transform = "translateX(100%)";
+
+            setTimeout(() => {
+              updateMobileSlide(-1);
+            }, 300);
+          } else {
+            // Snap Back
+            if (slides.prev) {
+              slides.prev.classList.add("snap-transition");
+              slides.prev.style.transform = "translateX(-100%)";
+            }
+            if (slides.curr) {
+              slides.curr.classList.add("snap-transition");
+              slides.curr.style.transform = "translateX(0)";
+            }
+            if (slides.next) {
+              slides.next.classList.add("snap-transition");
+              slides.next.style.transform = "translateX(100%)";
+            }
+            setTimeout(() => {
+              if (slides.prev) slides.prev.classList.remove("snap-transition");
+              if (slides.curr) slides.curr.classList.remove("snap-transition");
+              if (slides.next) slides.next.classList.remove("snap-transition");
+            }, 300);
+          }
           element.removeEventListener("touchmove", handleTouchMove);
         };
+
         element.addEventListener("touchstart", handleTouchStart, {
           passive: true,
         });
@@ -1251,6 +1344,15 @@
           passive: false,
         });
         element.addEventListener("touchend", handleTouchEnd, { passive: true });
+      }
+
+      function updateMobileSlide(direction) {
+        const gallery = GALLERIES[state.currentGalleryIndex];
+        state.currentSlideIndex =
+          (state.currentSlideIndex + direction + gallery.length) %
+          gallery.length;
+        state.zoomedElement.dataset.slideIndex = state.currentSlideIndex;
+        renderMobileCarousel(state.zoomedElement);
       }
 
       function handleSlideshowClick(e, element) {
@@ -1346,6 +1448,13 @@
         const zoomedEl = document.querySelector(".trail-image.zoomed");
         if (zoomedEl) {
           zoomedEl.classList.remove("zoomed");
+          // Cleanup mobile slides
+          if (state.isMobile) {
+            zoomedEl.innerHTML = "";
+            const cover = GALLERIES[state.currentGalleryIndex][0];
+            loadMedia(cover, zoomedEl, null, null);
+          }
+
           setTimeout(() => {
             if (zoomedEl) zoomedEl.style.removeProperty("--target-scale");
           }, 500);
