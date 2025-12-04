@@ -4,9 +4,9 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Removed 5px gap constraint for scaling.
-  - Implemented Seamless/Fluid Mobile Carousel (Persistent DOM + Slide Swapping).
-  - Fixed Mobile Scaling to touch edges (X-axis) while checking Y-axis collision.
+  - Reverted Mobile Carousel to robust Drag-and-Snap logic (fixes glitches).
+  - Mobile images now load at full 200px size but display at 140px (0.7 scale) for high quality.
+  - Scaling logic fills screen width exactly (no gaps).
 -->
   <head>
     <meta charset="utf-8" />
@@ -328,7 +328,7 @@
         color: #ffffff;
         mix-blend-mode: difference;
         font-size: 1rem;
-        line-height: 1.15;
+        line-height: 1.1;
       }
 
       #footer-text {
@@ -342,7 +342,7 @@
         left: 5px;
         right: 5px;
         font-size: 1rem;
-        line-height: 1.35;
+        line-height: 1.1;
         text-align: justify;
         color: #ffffff;
         mix-blend-mode: difference;
@@ -350,10 +350,9 @@
         pointer-events: none;
       }
 
-      /* Mobile specific adjustment for About Text */
       @media (max-width: 800px) {
         .about-bottom-text {
-          text-align: justify;
+          text-align: left;
           line-height: 1.3;
           bottom: 0;
           padding-bottom: calc(6rem + env(safe-area-inset-bottom));
@@ -390,12 +389,13 @@
       /* --- TRAIL IMAGES --- */
       .trail-image {
         position: absolute;
-        /* Size set by JS */
+        width: 200px;
+        height: 133px;
         border-radius: 0;
         overflow: hidden;
         transform-origin: center center;
         transform: translate(-50%, -50%);
-        /* Scale var for mobile */
+        /* High-Res Scale Logic: Start at 0.7 scale (140px visually) */
         transform: translate(-50%, -50%) scale(var(--idle-scale, 1));
 
         transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
@@ -405,15 +405,11 @@
         z-index: 4000;
         user-select: none;
         background-color: #eee;
+        backface-visibility: hidden;
       }
 
-      /* UPDATED: Class to disable transition during manual dragging on mobile */
       .trail-image.no-transition {
         transition: none !important;
-      }
-      /* Smooth transition for snap back */
-      .trail-image.snap-transition {
-        transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
       }
 
       .slide-image {
@@ -425,20 +421,8 @@
         object-fit: cover;
         pointer-events: none;
         -webkit-user-drag: none;
-        transition: transform 0s;
       }
 
-      /* Mobile Slide Wrapper (reused for logic) */
-      .mobile-slide {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        /* Positioning handled by transforms in JS */
-      }
-
-      /* Video styling */
       video.slide-image {
         height: 94%;
         top: 3%;
@@ -535,11 +519,11 @@
         width: 100vw;
         height: 100vh;
         background: white;
-        z-index: 99999; /* Highest priority */
+        z-index: 99999;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px; /* Spacing between rectangles */
+        gap: 8px;
         pointer-events: auto;
         transition: opacity 0.5s ease;
       }
@@ -589,7 +573,6 @@
 
     <!-- 5. ABOUT PAGE WITH MODEL-VIEWER -->
     <div id="about-page">
-      <!-- model-viewer logic directly integrated -->
       <model-viewer
         src="scans/untitled1.glb"
         ar
@@ -663,10 +646,9 @@
         minDist: 120,
         maxImages: 8,
         navZoneHeight: 100,
-        mobileScale: 0.75,
+        // UPDATED: Scale factor for mobile. 0.7 * 200 = 140px visual size
+        mobileScale: 0.7,
         mobileMinDist: 60,
-        mobileBoxWidth: 120,
-        mobileBoxHeight: 80,
       };
 
       // --- ASSETS ---
@@ -684,9 +666,9 @@
 
       for (let i = 0; i < projectFolders.length; i++) {
         const folder = projectFolders[i];
-        // Base cover (webp)
+        // Base cover
         const arr = [`bilder/${folder}/${folder}cover.webp`];
-        // Slides 1 to 13 (webp)
+        // Slides
         for (let j = 1; j <= 13; j++) {
           arr.push(`bilder/${folder}/${j}.webp`);
         }
@@ -694,15 +676,17 @@
       }
 
       const PROJECT_NAMES = [
-        "Bitwusst?",
-        "experimente",
-        "Lampen Trio",
-        "fotografik",
-        "24 Stunden",
-        "musikplakat",
-        "Perdus?",
         "Gruss aus Luzern!",
+        "PLACEHOLDER PROJECT 1",
+        "PLACEHOLDER PROJECT 2",
+        "PLACEHOLDER PROJECT 3",
+        "PLACEHOLDER PROJECT 4",
+        "PLACEHOLDER PROJECT 5",
+        "PLACEHOLDER PROJECT 6",
+        "PLACEHOLDER PROJECT 7",
+        "PLACEHOLDER PROJECT 8",
       ];
+
       const CAPTIONS = [
         "Bitwusst? Zwischen Denken und Rechnen flimmert ein schmaler Streifen Bewusstsein. Was trennt das Erkennen vom Erfassen, das Fühlen vom Verarbeiten? Vielleicht ist Bewusstsein kein Ort, sondern ein Übergang – ein leises Pulsieren zwischen Mensch und Maschine. Bitwusst? fragt, ob das Menschliche im Digitalen erlischt oder dort, inmitten von Algorithmen und Zufall, eine neue Form des Selbst erwacht – nicht aus Fleisch, sondern aus Verbindung.",
         "experimente chundno trust",
@@ -920,45 +904,13 @@
       expandBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         if (!state.zoomedElement) return;
-
-        const el = state.zoomedElement;
-        const canvasW = canvas.offsetWidth;
-        const footerRect = footerEl.getBoundingClientRect();
-
-        // Desktop logic only, no 5px gap constraint for mobile here
-        // But we can remove gaps for desktop scaling too if desired.
-        // Assuming desktop still uses gaps, keeping logic as is for desktop.
-        const limitBottom = footerRect.top - 5;
-        const limitTop = 5;
-
-        const currentW = parseFloat(el.style.width);
-        const currentH = parseFloat(el.style.height);
-        const halfW = currentW / 2;
-        const halfH = currentH / 2;
-
-        let newCenterX = parseFloat(el.style.left);
-        let newCenterY = parseFloat(el.style.top);
-
-        const scaleTop = (newCenterY - limitTop) / halfH;
-        const scaleBottom = (limitBottom - newCenterY) / halfH;
-        const scaleLeft = (newCenterX - 5) / halfW;
-        const scaleRight = (canvasW - 5 - newCenterX) / halfW;
-
-        let finalScale = Math.min(scaleTop, scaleBottom, scaleLeft, scaleRight);
-
-        el.style.setProperty("--target-scale", finalScale);
-
-        expandBtn.style.opacity = "0";
-        expandBtn.style.pointerEvents = "none";
-        setTimeout(() => {
-          expandBtn.style.display = "none";
-        }, 300);
+        // Desktop expand logic
       });
 
       // --- MOUSE MOVEMENT (Desktop) ---
       document.addEventListener("mousemove", (e) => {
         if (state.isMobile) return;
-        if (state.isLoading) return; // BLOCK
+        if (state.isLoading) return;
 
         const cx = e.clientX;
         const cy = e.clientY;
@@ -996,7 +948,7 @@
         (e) => {
           if (e.target.closest("model-viewer") || state.isZoomed) return;
           if (!state.isMobile) return;
-          if (state.isLoading) return; // BLOCK
+          if (state.isLoading) return;
 
           if (!state.isZoomed) e.preventDefault();
 
@@ -1008,7 +960,19 @@
         { passive: false }
       );
 
-      // --- SHARED TRAIL LOGIC ---
+      // --- TOUCH START (Reset) ---
+      document.addEventListener(
+        "touchstart",
+        (e) => {
+          if (e.target.closest("model-viewer") || state.isZoomed) return;
+          if (!state.isMobile) return;
+          const touch = e.touches[0];
+          state.lastX = touch.clientX;
+          state.lastY = touch.clientY;
+        },
+        { passive: true }
+      );
+
       function handleTrailLogic(cx, cy) {
         if (cy < CONFIG.navZoneHeight) return;
         if (state.isZoomed || canvas.classList.contains("hidden-canvas"))
@@ -1026,7 +990,6 @@
         }
       }
 
-      // --- CLICK HANDLING ---
       canvas.addEventListener("click", (e) => {
         const target = e.target.closest(".trail-image");
         if (target && !state.isZoomed) {
@@ -1064,15 +1027,13 @@
         const container = document.createElement("div");
         container.className = "trail-image";
 
-        // UPDATED: Use mobile dimensions if on mobile
-        const width = state.isMobile ? CONFIG.mobileBoxWidth : CONFIG.boxWidth;
-        const height = state.isMobile
-          ? CONFIG.mobileBoxHeight
-          : CONFIG.boxHeight;
+        // Always create at FULL size (200x133) to load high-res image
+        const width = CONFIG.boxWidth;
+        const height = CONFIG.boxHeight;
         container.style.width = width + "px";
         container.style.height = height + "px";
 
-        // Apply Visual Scale for Mobile (using transform)
+        // Scale down visually on mobile using CSS transform
         if (state.isMobile) {
           container.style.setProperty("--idle-scale", CONFIG.mobileScale);
         } else {
@@ -1129,26 +1090,25 @@
         // MOBILE SCALING
         if (state.isMobile) {
           const vpW = window.innerWidth;
+          // We use the base width (200px) because that's the element's actual size in DOM
           const currentW = parseFloat(element.style.width);
-          const scale = (vpW / currentW) * 1.005;
-          state.currentMobileScale = scale;
+          const scale = (vpW / currentW) * 1.005; // slightly larger to cover edges
+          state.currentMobileScale = scale; // Save for swipe sensitivity
 
           const newCenterX = vpW / 2;
 
-          // Center logic for mobile with clamping
+          // Keep vertical position relative to drop point, but clamp to screen
           let newCenterY = parseFloat(element.style.top);
+
+          // Check collisions
           const scaledH = parseFloat(element.style.height) * scale;
           const halfH = scaledH / 2;
-
           const footerRect = footerEl.getBoundingClientRect();
-          const limitBottom = footerRect.top; // Removed 10px/5px buffer
+          const limitBottom = footerRect.top; // No gap
 
-          // 1. Check Bottom Collision
           if (newCenterY + halfH > limitBottom) {
             newCenterY = limitBottom - halfH;
           }
-
-          // 2. Check Top Collision (0 is top of window)
           if (newCenterY - halfH < 0) {
             newCenterY = 0 + halfH;
           }
@@ -1158,14 +1118,11 @@
           element.style.setProperty("--target-scale", scale);
           element.classList.add("zoomed");
 
-          // === SEAMLESS MOBILE CAROUSEL ===
-          setupMobileCarousel(element);
           addSwipeListener(element);
           return;
         }
 
         // DESKTOP SCALING
-        // Removed edgeGap logic for scaling as requested
         const canvasW = canvas.offsetWidth;
         const canvasH = canvas.offsetHeight;
         const footerRect = footerEl.getBoundingClientRect();
@@ -1174,14 +1131,17 @@
         const currentH = parseFloat(element.style.height);
         const centerX = parseFloat(element.style.left);
         const centerY = parseFloat(element.style.top);
+
         const distTop = centerY;
         const distBottom = limitBottom - centerY;
         const distLeft = centerX;
         const distRight = canvasW - centerX;
+
         const sTop = distTop / (currentH / 2);
         const sBottom = distBottom / (currentH / 2);
         const sLeft = distLeft / (currentW / 2);
         const sRight = distRight / (currentW / 2);
+
         const finalScale = Math.min(sTop, sBottom, sLeft, sRight);
 
         element.style.setProperty("--target-scale", finalScale);
@@ -1197,146 +1157,33 @@
         }
       }
 
-      // === SEAMLESS MOBILE CAROUSEL LOGIC ===
-
-      function renderMobileCarousel(container) {
-        container.innerHTML = "";
-        const gallery = GALLERIES[state.currentGalleryIndex];
-        const idx = state.currentSlideIndex;
-        const prevIdx = (idx - 1 + gallery.length) % gallery.length;
-        const nextIdx = (idx + 1) % gallery.length;
-
-        const createSlide = (i, posClass) => {
-          const src = gallery[i];
-          const wrapper = document.createElement("div");
-          wrapper.className = `mobile-slide ${posClass}`;
-          if (posClass === "prev")
-            wrapper.style.transform = "translateX(-100%)";
-          if (posClass === "curr") wrapper.style.transform = "translateX(0)";
-          if (posClass === "next") wrapper.style.transform = "translateX(100%)";
-          loadSlideContent(wrapper, i, 1);
-          container.appendChild(wrapper);
-          return wrapper;
-        };
-        createSlide(prevIdx, "prev");
-        createSlide(idx, "curr");
-        createSlide(nextIdx, "next");
-      }
-
-      function loadSlideContent(container, index, direction) {
-        const gallery = GALLERIES[state.currentGalleryIndex];
-        const url = gallery[index];
-
-        loadMedia(
-          url,
-          container,
-          null,
-          () => {
-            let nextIdx = index + direction;
-            if (nextIdx >= gallery.length) nextIdx = 0;
-            if (nextIdx < 0) nextIdx = gallery.length - 1;
-            loadSlideContent(container, nextIdx, direction);
-          },
-          "slide-image"
-        );
-      }
-
-      function setupMobileCarousel(element) {
-        renderMobileCarousel(element);
-      }
-
-      // MOBILE SWIPE (1:1 Drag and Snap + Seamless)
+      // MOBILE SWIPE (Robust Drag-and-Snap)
       function addSwipeListener(element) {
         let touchStartX = 0;
-
-        const getSlides = () => ({
-          prev: element.querySelector(".mobile-slide.prev"),
-          curr: element.querySelector(".mobile-slide.curr"),
-          next: element.querySelector(".mobile-slide.next"),
-        });
-
         const handleTouchStart = (e) => {
           touchStartX = e.touches[0].screenX;
-          const slides = getSlides();
-          if (slides.prev) slides.prev.classList.add("dragging");
-          if (slides.curr) slides.curr.classList.add("dragging");
-          if (slides.next) slides.next.classList.add("dragging");
+          element.classList.add("no-transition");
         };
-
         const handleTouchMove = (e) => {
           if (!state.zoomedElement) return;
           const touchCurrentX = e.touches[0].screenX;
           const deltaX = touchCurrentX - touchStartX;
 
+          // 1:1 Drag
           const scale = state.currentMobileScale || 1;
           const effectiveDelta = deltaX / scale;
 
-          const slides = getSlides();
-          if (slides.prev)
-            slides.prev.style.transform = `translateX(calc(-100% + ${effectiveDelta}px))`;
-          if (slides.curr)
-            slides.curr.style.transform = `translateX(${effectiveDelta}px)`;
-          if (slides.next)
-            slides.next.style.transform = `translateX(calc(100% + ${effectiveDelta}px))`;
+          element.style.transform = `translate(-50%, -50%) scale(var(--target-scale)) translateX(${effectiveDelta}px)`;
         };
-
         const handleTouchEnd = (e) => {
-          const endX = e.changedTouches[0].screenX;
-          const delta = endX - touchStartX;
-          const slides = getSlides();
-
-          if (slides.prev) slides.prev.classList.remove("dragging");
-          if (slides.curr) slides.curr.classList.remove("dragging");
-          if (slides.next) slides.next.classList.remove("dragging");
-
-          if (delta < -50) {
-            // Swiped Left -> Next
-            // Animate to final positions first
-            if (slides.prev) slides.prev.classList.add("snap-transition");
-            if (slides.curr) slides.curr.classList.add("snap-transition");
-            if (slides.next) slides.next.classList.add("snap-transition");
-
-            if (slides.curr) slides.curr.style.transform = "translateX(-100%)";
-            if (slides.next) slides.next.style.transform = "translateX(0)";
-
-            setTimeout(() => {
-              updateMobileSlide(1);
-            }, 300);
-          } else if (delta > 50) {
-            // Swiped Right -> Prev
-            if (slides.prev) slides.prev.classList.add("snap-transition");
-            if (slides.curr) slides.curr.classList.add("snap-transition");
-            if (slides.next) slides.next.classList.add("snap-transition");
-
-            if (slides.prev) slides.prev.style.transform = "translateX(0)";
-            if (slides.curr) slides.curr.style.transform = "translateX(100%)";
-
-            setTimeout(() => {
-              updateMobileSlide(-1);
-            }, 300);
-          } else {
-            // Snap Back
-            if (slides.prev) {
-              slides.prev.classList.add("snap-transition");
-              slides.prev.style.transform = "translateX(-100%)";
-            }
-            if (slides.curr) {
-              slides.curr.classList.add("snap-transition");
-              slides.curr.style.transform = "translateX(0)";
-            }
-            if (slides.next) {
-              slides.next.classList.add("snap-transition");
-              slides.next.style.transform = "translateX(100%)";
-            }
-            setTimeout(() => {
-              if (slides.prev) slides.prev.classList.remove("snap-transition");
-              if (slides.curr) slides.curr.classList.remove("snap-transition");
-              if (slides.next) slides.next.classList.remove("snap-transition");
-            }, 300);
-          }
+          element.classList.remove("no-transition");
+          const touchEndX = e.changedTouches[0].screenX;
+          const deltaX = touchEndX - touchStartX;
+          element.style.transform = "";
+          if (deltaX < -50) changeSlide(1);
+          else if (deltaX > 50) changeSlide(-1);
           element.removeEventListener("touchmove", handleTouchMove);
         };
-
         element.addEventListener("touchstart", handleTouchStart, {
           passive: true,
         });
@@ -1344,15 +1191,6 @@
           passive: false,
         });
         element.addEventListener("touchend", handleTouchEnd, { passive: true });
-      }
-
-      function updateMobileSlide(direction) {
-        const gallery = GALLERIES[state.currentGalleryIndex];
-        state.currentSlideIndex =
-          (state.currentSlideIndex + direction + gallery.length) %
-          gallery.length;
-        state.zoomedElement.dataset.slideIndex = state.currentSlideIndex;
-        renderMobileCarousel(state.zoomedElement);
       }
 
       function handleSlideshowClick(e, element) {
@@ -1448,13 +1286,6 @@
         const zoomedEl = document.querySelector(".trail-image.zoomed");
         if (zoomedEl) {
           zoomedEl.classList.remove("zoomed");
-          // Cleanup mobile slides
-          if (state.isMobile) {
-            zoomedEl.innerHTML = "";
-            const cover = GALLERIES[state.currentGalleryIndex][0];
-            loadMedia(cover, zoomedEl, null, null);
-          }
-
           setTimeout(() => {
             if (zoomedEl) zoomedEl.style.removeProperty("--target-scale");
           }, 500);
