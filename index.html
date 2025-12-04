@@ -4,13 +4,13 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Fixed GLB loading by setting path to 'untitled1.glb' (root).
-  - Preserved About Me text with inverted styling.
+  - Fixed bug where project text persisted on Über page.
+  - Added logic to reset zoom state when navigating to Über so the main page resets cleanly.
 -->
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Exact Edge Scaling</title>
+    <title>gigergrafik</title>
 
     <!-- CSP: Updated to allow model-viewer CDN and local blobs -->
     <meta
@@ -201,7 +201,7 @@
       }
 
       #ar-button {
-        /* UPDATED: Set to root path */
+        /* Assuming ar_icon.png is local */
         background-image: url(ar_icon.png);
         background-repeat: no-repeat;
         background-size: 20px 20px;
@@ -498,11 +498,7 @@
 
     <!-- 5. ABOUT PAGE WITH MODEL-VIEWER -->
     <div id="about-page">
-      <!-- 
-        MODEL VIEWER ELEMENT 
-        - src="untitled1.glb" (Updated path to root)
-        - poster="poster.webp" (Updated path to root)
-      -->
+      <!-- model-viewer logic directly integrated -->
       <model-viewer
         src="scans/untitled1.glb"
         ar
@@ -522,9 +518,7 @@
         </div>
       </model-viewer>
 
-      <div class="about-center-text">
-        <!-- Empty title -->
-      </div>
+      <div class="about-center-text"></div>
       <div class="about-bottom-text">
         I’m a designer who loves exploring the experimental side of visual
         communication, always searching for new ways to break, stretch, and
@@ -557,10 +551,7 @@
         id="helper-text"
         class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
       >
-        <h1 class="text-[1rem] font-normal text-gray-900 mb-2 uppercase">
-          Interactive Trail
-        </h1>
-        <p class="text-[1rem] font-normal text-gray-500">
+        <p class="text-[1rem] font-normal">
           Move mouse to drop images. Click to expand & slide.
         </p>
       </div>
@@ -607,25 +598,25 @@
       }
 
       const PROJECT_NAMES = [
-        "Bitwusst?",
-        "experimente",
-        "Lampen Trio",
-        "fotografik",
-        "24 Stunden",
-        "musikplakat",
-        "Perdus?",
-        "Gruss aus Luzern!",
+        "PLACEHOLDER PROJECT 1",
+        "PLACEHOLDER PROJECT 2",
+        "PLACEHOLDER PROJECT 3",
+        "PLACEHOLDER PROJECT 4",
+        "PLACEHOLDER PROJECT 5",
+        "PLACEHOLDER PROJECT 6",
+        "PLACEHOLDER PROJECT 7",
+        "PLACEHOLDER PROJECT 8",
       ];
 
       const CAPTIONS = [
-        "Bitwusst? Zwischen Denken und Rechnen flimmert ein schmaler Streifen Bewusstsein. Was trennt das Erkennen vom Erfassen, das Fühlen vom Verarbeiten? Vielleicht ist Bewusstsein kein Ort, sondern ein Übergang – ein leises Pulsieren zwisc Bitwusst? fragt, ob das Menschliche im Digitalen erlischt oder dort, inmitten von Algorithmen und Zufall, eine neue Form des Selbst erwacht – nicht aus Fleisch, sondern aus Verbindung.",
-        "experimente chundno trust",
-        "Lampen Trio Mein erstes Layout-Projekt: ein Katalog über Designerlampen. Dabei lernte ich Raster, Mikrotypografie und das Prinzip, gutes Design beruht auf Logik, nicht auf Zufall. Inspiriert von Josef Müller-Brockmann baute ich ein klares, rhythmisches Layout auf, das Raum und Typografie in Balance bringt. Lampen Trio war mein Einstieg in das Denken in Systemen und ein Crashkurs in grafischer Präzision.",
-        "fotografik chund auno trust",
-        "24 Stunden? Ein Tag, eine Klasse, unzählige Geschichten. Im interdisziplinären Projekt 24 Stunden entwickelte ich ein Layoutkonzept, das Zeit in Struktur übersetzt: ein Raster mit 24 Zeilen und 60 Spalten – jede Stunde, jede Minute. So fliessen die Bilder der Klasse wie ein Strom durch das Buch, während der Text verdrängt, verschoben und neu geordnet wurde. Eine visuelle Studie über Zeit, Rhythmus und das Verhältnis von Inhalt und Form.",
-        "musikplakatchundno trussssstt",
-        "Perdus? In einer Stadt, in der barocke Pracht auf soziale Unsichtbarkeit trifft, untersucht Perdus die Kluft zwischen Macht und Marginalisierung. Ausgehend der Place des Victoires verbinden sich visuelle Scans, historische Bezüge und sozialkritische Texte zu einem stillen Dialog über Verfall, Würde und Ungleichheit. Die Publikation lädt ein, Paris nicht nur als architektonisches Erbe zu sehen, sondern als Bühne der sozialen Fragen unserer Zeit.",
-        "Gruss aus Luzern!�Kein Pilatus, keine Kapellbrücke – dafür Emil Manser. Für diese Postkarte wollte ich das unperfekte Luzern zeigen: roh, laut und echt. Ich programmierte mit Python einen Generator, der aus Mansers Schildertexten ein neues Porträt formte. So entstand ein digitales Bild, das Philosophie, Strasse und Code verbindet – ein Gruss aus dem echten Luzern, nicht dem touristischen.",
+        "Zwischen Denken und Rechnen...",
+        "Kopfzeichnen Ein leerer Kopf...",
+        "Lampen Trio...",
+        "Irrgarten...",
+        "24 Stunden...",
+        "Gruss aus Luzern!...",
+        "Perdus...",
+        "Perdus...",
       ];
 
       // --- STATE ---
@@ -761,6 +752,19 @@
 
       // --- NAVIGATION EVENTS ---
       navAbout.addEventListener("click", () => {
+        if (state.landingActive) return;
+
+        // FIX: Reset text info and zoom state immediately
+        resetInfo();
+
+        if (state.isZoomed) {
+          // Manually reset zoom state so UI is clean when returning
+          state.isZoomed = false;
+          state.zoomedElement = null;
+          document.body.classList.remove("zoomed-active");
+          expandBtn.style.display = "none";
+        }
+
         canvas.classList.add("hidden-canvas");
         state.aboutActive = true;
         setTimeout(() => {
@@ -938,18 +942,13 @@
         const container = document.createElement("div");
         container.className = "trail-image";
 
-        // ALWAYS use Full Size (200x133) for layout
-        const width = CONFIG.boxWidth;
-        const height = CONFIG.boxHeight;
+        // UPDATED: Use mobile dimensions if on mobile
+        const width = state.isMobile ? CONFIG.mobileBoxWidth : CONFIG.boxWidth;
+        const height = state.isMobile
+          ? CONFIG.mobileBoxHeight
+          : CONFIG.boxHeight;
         container.style.width = width + "px";
         container.style.height = height + "px";
-
-        // Apply Visual Scale for Mobile
-        if (state.isMobile) {
-          container.style.setProperty("--idle-scale", CONFIG.mobileScale);
-        } else {
-          container.style.setProperty("--idle-scale", 1);
-        }
 
         const galleryIndex = (state.count - 1) % GALLERIES.length;
         container.dataset.galleryIndex = galleryIndex;
@@ -1008,7 +1007,7 @@
         if (state.isMobile) {
           const vpW = window.innerWidth;
           // Current W is full res (200px)
-          const currentW = CONFIG.boxWidth;
+          const currentW = parseFloat(element.style.width);
           const scale = (vpW / currentW) * 1.005; // Slight overlap to prevent gap
 
           const newCenterX = vpW / 2;
