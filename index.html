@@ -4,8 +4,8 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Mobile Trail: Boxes are now smaller (100px width) for a cleaner look.
-  - Mobile Layout: Uses 'dvh' units and increased bottom spacing to prevent text hiding under browser bars.
+  - Mobile Box Size: Increased to 120px.
+  - Mobile Scaling: Animates to horizontal center (X-axis) and fills screen width exactly.
 -->
   <head>
     <meta charset="utf-8" />
@@ -47,9 +47,7 @@
         margin: 0;
         padding: 0;
         width: 100%;
-        /* UPDATED: Use dynamic viewport height for mobile browser bar support */
         height: 100%;
-        min-height: 100dvh;
         background-color: #ffffff;
         font-family: "Programme", sans-serif;
         overflow: hidden;
@@ -90,8 +88,8 @@
         justify-content: center;
       }
 
+      /* STRICTLY HIDE CURSOR ON MOBILE */
       body.is-mobile #custom-cursor {
-        transition: none;
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
@@ -126,9 +124,7 @@
       #canvas {
         position: relative;
         width: 100vw;
-        /* UPDATED: Dynamic height */
         height: 100vh;
-        height: 100dvh;
         overflow: hidden;
         background-color: #ffffff;
         transition: opacity 0.4s ease;
@@ -141,9 +137,7 @@
         top: 0;
         left: 0;
         width: 100vw;
-        /* UPDATED: Dynamic height */
         height: 100vh;
-        height: 100dvh;
         background-color: #ffffff;
         z-index: 2000;
         opacity: 0;
@@ -207,7 +201,7 @@
       }
 
       .update-bar {
-        background-color: #000;
+        background-color: rgba(255, 255, 255, 0.9);
         width: 0%;
         height: 100%;
         border-radius: 25px;
@@ -216,7 +210,8 @@
       }
 
       #ar-button {
-        /* Assuming ar_icon.png is local */
+        /* Assuming ar_icon.png is local, updated path just in case or keep root if that's where it is */
+        /* Using just filename as per snippet, assuming it's in root or handle via JS logic if needed */
         background-image: url(ar_icon.png);
         background-repeat: no-repeat;
         background-size: 20px 20px;
@@ -309,13 +304,14 @@
 
       #nav-center {
         position: static;
-        pointer-events: auto;
+        pointer-events: auto; /* Allow clicks on the link */
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         text-align: left;
       }
 
+      /* Link styling for email */
       #nav-center a {
         text-decoration: none;
         color: inherit;
@@ -406,7 +402,7 @@
         overflow: hidden;
         transform-origin: center center;
         transform: translate(-50%, -50%);
-        /* Scale var for mobile */
+        /* SCALE via transform for mobile crispness */
         transform: translate(-50%, -50%) scale(var(--idle-scale, 1));
 
         transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
@@ -416,8 +412,6 @@
         z-index: 4000;
         user-select: none;
         background-color: #eee;
-        backface-visibility: hidden;
-        -webkit-backface-visibility: hidden;
       }
 
       .trail-image.no-transition {
@@ -565,7 +559,6 @@
     <!-- 5. ABOUT PAGE WITH MODEL-VIEWER -->
     <div id="about-page">
       <!-- model-viewer logic directly integrated -->
-      <!-- NOTE: src is just filename because they are in same folder -->
       <model-viewer
         src="untitled1.glb"
         ar
@@ -639,10 +632,10 @@
         minDist: 120,
         maxImages: 8,
         navZoneHeight: 100,
-        // UPDATED: Smaller dimensions for mobile trail (was 150/100)
-        mobileBoxWidth: 100,
-        mobileBoxHeight: 66,
+        mobileScale: 0.75, // Images are 75% of 200px (150px) on mobile
         mobileMinDist: 60,
+        mobileBoxWidth: 120, // UPDATED: Fixed width for mobile trail (matches mobileScale logic approx)
+        mobileBoxHeight: 80,
       };
 
       // --- ASSETS ---
@@ -931,6 +924,7 @@
         let rotation = 0;
         if (state.isZoomed && state.zoomedElement) {
           const rect = state.zoomedElement.getBoundingClientRect();
+          // UPDATED: Change Cursor to Arrows when hovering zoomed image
           if (
             cx >= rect.left &&
             cx <= rect.right &&
@@ -938,14 +932,17 @@
             cy <= rect.bottom
           ) {
             const relX = cx - rect.left;
+            // Left side = left arrow, Right side = right arrow
             customCursor.innerHTML =
               relX < rect.width / 2 ? "&larr;" : "&rarr;";
-            rotation = 0;
+            rotation = 0; // Don't rotate arrow
           } else {
+            // Outside box, revert to exclamation
             customCursor.innerHTML = "!";
             rotation = 0;
           }
         } else {
+          // Not zoomed, ensure default
           customCursor.innerHTML = "!";
         }
         customCursor.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
@@ -963,7 +960,6 @@
           if (!state.isMobile) return;
 
           // Prevent default ONLY if NOT zoomed (to draw trail)
-          // If zoomed, we want swipe listeners to handle things, but default scroll is bad
           if (!state.isZoomed) {
             e.preventDefault();
           }
@@ -1118,7 +1114,6 @@
           // Calculate collision with footer text
           const scaledH = parseFloat(element.style.height) * scale;
           const halfH = scaledH / 2;
-
           const footerRect = footerEl.getBoundingClientRect();
           const limitBottom = footerRect.top - 10;
 
@@ -1137,7 +1132,7 @@
           return;
         }
 
-        // DESKTOP SCALING
+        // DESKTOP SCALING (Existing Logic)
         const canvasW = canvas.offsetWidth;
         const canvasH = canvas.offsetHeight;
         const footerRect = footerEl.getBoundingClientRect();
