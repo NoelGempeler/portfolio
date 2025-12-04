@@ -4,9 +4,8 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Mobile Scaling: Added boundary clamping.
-    - Top: Images shifted down to touch top of screen (0px) if too high.
-    - Bottom: Images shifted up to avoid overlapping footer Project Texts.
+  - Clicking 'gigergrafik' (Home) now resets zoom state/trail properly.
+  - Clicking/Tapping white space (backdrop) resets zoom state immediately on mobile.
 -->
   <head>
     <meta charset="utf-8" />
@@ -876,6 +875,25 @@
       }
 
       // --- NAVIGATION EVENTS ---
+
+      // UPDATED: navHome click logic for reset
+      navHome.addEventListener("click", () => {
+        // Close About
+        state.aboutActive = false;
+        aboutPage.style.opacity = "0";
+        setTimeout(() => {
+          aboutPage.classList.remove("active");
+          canvas.classList.remove("hidden-canvas");
+        }, 400);
+
+        // Reset Zoom/Trail
+        if (state.isZoomed) {
+          zoomOut();
+        } else {
+          resetTrail();
+        }
+      });
+
       navAbout.addEventListener("click", () => {
         resetInfo();
         if (state.isZoomed) {
@@ -892,30 +910,75 @@
         }, 400);
       });
 
-      navHome.addEventListener("click", () => {
-        state.aboutActive = false;
-        aboutPage.style.opacity = "0";
-        setTimeout(() => {
-          aboutPage.classList.remove("active");
-          canvas.classList.remove("hidden-canvas");
-          resetTrail();
-        }, 400);
-      });
-
       // --- EXPAND BUTTON LOGIC ---
       expandBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         if (!state.zoomedElement) return;
-        // Desktop expand logic
+
+        const el = state.zoomedElement;
+        const canvasW = canvas.offsetWidth;
+        const footerRect = footerEl.getBoundingClientRect();
+        const limitBottom = footerRect.top;
+
+        // Use dynamic size
+        const currentW = parseFloat(el.style.width);
+        const currentH = parseFloat(el.style.height);
+        const halfW = currentW / 2;
+        const halfH = currentH / 2;
+
+        let newCenterX = parseFloat(el.style.left);
+        let newCenterY = parseFloat(el.style.top);
+
+        const scaleTop = (2 * newCenterY) / currentH;
+        const scaleBottom = (2 * (limitBottom - newCenterY)) / currentH;
+        const scaleLeft = (2 * newCenterX) / currentW;
+        const scaleRight = (2 * (canvasW - newCenterX)) / currentW;
+
+        let finalScale = 1;
+
+        if (state.collisionEdges.left) {
+          const sRightAnchored = canvasW / currentW;
+          finalScale = Math.min(scaleTop, scaleBottom, sRightAnchored);
+          newCenterX = (currentW * finalScale) / 2;
+        } else if (state.collisionEdges.right) {
+          const sLeftAnchored = canvasW / currentW;
+          finalScale = Math.min(scaleTop, scaleBottom, sLeftAnchored);
+          newCenterX = canvasW - (currentW * finalScale) / 2;
+        } else if (state.collisionEdges.top) {
+          const sBottomAnchored = limitBottom / currentH;
+          finalScale = Math.min(scaleLeft, scaleRight, sBottomAnchored);
+          newCenterY = (currentH * finalScale) / 2;
+        } else if (state.collisionEdges.bottom) {
+          const sTopAnchored = limitBottom / currentH;
+          finalScale = Math.min(scaleLeft, scaleRight, sTopAnchored);
+          newCenterY = limitBottom - (currentH * finalScale) / 2;
+        } else {
+          const sW = canvasW / currentW;
+          const sH = limitBottom / currentH;
+          finalScale = Math.min(sW, sH);
+          newCenterX = canvasW / 2;
+          newCenterY = limitBottom / 2;
+        }
+
+        el.style.left = newCenterX + "px";
+        el.style.top = newCenterY + "px";
+        el.style.setProperty("--target-scale", finalScale);
+
+        expandBtn.style.opacity = "0";
+        expandBtn.style.pointerEvents = "none";
+        setTimeout(() => {
+          expandBtn.style.display = "none";
+        }, 300);
       });
 
-      // --- MOUSE MOVEMENT ---
+      // --- MOUSE MOVEMENT (Desktop) ---
       document.addEventListener("mousemove", (e) => {
         if (state.isMobile) return;
         if (state.isLoading) return; // BLOCK
 
         const cx = e.clientX;
         const cy = e.clientY;
+
         customCursor.style.left = cx + "px";
         customCursor.style.top = cy + "px";
 
@@ -940,6 +1003,7 @@
           customCursor.innerHTML = "!";
         }
         customCursor.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
+
         handleTrailLogic(cx, cy);
       });
 
@@ -999,6 +1063,17 @@
       });
 
       backdrop.addEventListener("click", zoomOut);
+      // UPDATED: Added touchstart listener for mobile backdrop reset
+      backdrop.addEventListener(
+        "touchstart",
+        (e) => {
+          if (state.isZoomed) {
+            e.preventDefault();
+            zoomOut();
+          }
+        },
+        { passive: false }
+      );
 
       function createBox(x, y) {
         if (state.count >= CONFIG.maxImages) return;
@@ -1047,7 +1122,9 @@
           }
         });
         container.addEventListener("mouseleave", () => {
-          if (!state.isZoomed) resetInfo();
+          if (!state.isZoomed) {
+            resetInfo();
+          }
         });
         canvas.appendChild(container);
       }
@@ -1188,9 +1265,12 @@
       function changeSlide(direction) {
         if (!state.zoomedElement) return;
         if (state.isAnimating) return;
-        state.isAnimating = true;
+
+        state.isAnimating = true; // Lock input
         const gallery = GALLERIES[state.currentGalleryIndex];
+
         let attemptIndex = state.currentSlideIndex + direction;
+
         if (attemptIndex >= gallery.length) attemptIndex = 0;
         if (attemptIndex < 0) attemptIndex = gallery.length - 1;
 
@@ -1203,7 +1283,9 @@
             state.isAnimating = false;
             return;
           }
+
           const url = gallery[index];
+          // Use loadMedia helper
           loadMedia(
             url,
             state.zoomedElement,
@@ -1215,6 +1297,8 @@
                 state.zoomedElement.querySelectorAll(".slide-image");
               const oldEl =
                 allSlides.length > 1 ? allSlides[allSlides.length - 2] : null;
+
+              // Force Reflow to ensure transition happens
               void newEl.offsetWidth;
 
               if (direction === 1) {
@@ -1224,9 +1308,13 @@
                 newEl.classList.add("animate-enter-left");
                 if (oldEl) oldEl.classList.add("animate-exit-right");
               }
+
               state.currentSlideIndex = index;
               state.zoomedElement.dataset.slideIndex = index;
+
+              // PRELOAD NEXT AFTER LOAD
               preloadNeighbors(state.currentGalleryIndex, index);
+
               setTimeout(() => {
                 if (oldEl) oldEl.remove();
                 newEl.classList.remove(
@@ -1244,6 +1332,7 @@
             }
           );
         }
+
         tryLoad(attemptIndex);
       }
 
