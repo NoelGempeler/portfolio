@@ -4,15 +4,15 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Mobile Carousel: Replaced snap/swipe logic with native fluid scrolling (overflow-x: auto).
-  - Images flow freely and scroll with native momentum.
+  - Fixed Mobile Trail: Added 'touchstart' handler and removed restrictive mobile checks in 'touchmove'.
+  - Trail now draws immediately and smoothly on touch devices.
 -->
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Exact Edge Scaling</title>
 
-    <!-- CSP: User provided permissive policy -->
+    <!-- CSP: Updated to allow model-viewer CDN and local blobs -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' blob:; img-src * data: blob:; media-src * data: blob:; style-src * 'unsafe-inline'; object-src * data: blob:; font-src * data:;"
@@ -388,7 +388,8 @@
       /* --- TRAIL IMAGES --- */
       .trail-image {
         position: absolute;
-        /* Size set by JS */
+        width: 200px;
+        height: 133px;
         border-radius: 0;
         overflow: hidden;
         transform-origin: center center;
@@ -408,35 +409,6 @@
         transition: none !important;
       }
 
-      /* NEW: Mobile Scroll Container */
-      .trail-image.mobile-scroll {
-        display: flex;
-        flex-direction: row;
-        overflow-x: auto;
-        overflow-y: hidden;
-        /* Hide scrollbar */
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-        /* Allow horizontal pan */
-        touch-action: pan-x !important;
-        pointer-events: auto !important;
-      }
-
-      .trail-image.mobile-scroll::-webkit-scrollbar {
-        display: none;
-      }
-
-      .mobile-slide-item {
-        width: 100%;
-        height: 100%;
-        flex-shrink: 0;
-        position: relative;
-        /* Center content */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
       .slide-image {
         position: absolute;
         top: 0;
@@ -449,19 +421,26 @@
         transition: transform 0s;
       }
 
+      /* Mobile Slide Specifics */
+      .mobile-slide {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+      }
+      .mobile-slide.dragging {
+        transition: none !important;
+      }
+
       /* Video styling */
-      video.slide-image {
+      video.slide-image,
+      video.mobile-slide {
         height: 94%;
         top: 3%;
         object-fit: contain;
         background-color: black;
-      }
-
-      /* Ensure video in mobile scroll also obeys fit */
-      .mobile-slide-item video.slide-image {
-        position: relative; /* Reset absolute to flow in flex item */
-        top: auto;
-        left: auto;
       }
 
       body:not(.zoomed-active) .trail-image:hover {
@@ -572,7 +551,7 @@
     <div id="about-page">
       <!-- model-viewer logic directly integrated -->
       <model-viewer
-        src="scans/untitled1.glb"
+        src="untitled1.glb"
         ar
         ar-modes="webxr scene-viewer quick-look"
         camera-controls
@@ -736,7 +715,9 @@
           helperText.innerText = "Drag finger to draw. Tap box to expand.";
         }
       };
+      // Run on load and resize
       checkMobile();
+      window.addEventListener("resize", checkMobile);
 
       // --- MODEL VIEWER EVENT LOGIC ---
       const onProgress = (event) => {
@@ -765,6 +746,7 @@
         if (footerText) footerText.innerText = caption;
       };
 
+      // UPDATED: Restores the mailto link with target blank
       const resetInfo = () => {
         if (navCenter)
           navCenter.innerHTML =
@@ -782,6 +764,7 @@
         helperText.style.opacity = "1";
       };
 
+      // Preload neighbors
       const preloadNeighbors = (galleryIdx, currentSlideIdx) => {
         const gallery = GALLERIES[galleryIdx];
         const nextIdx = (currentSlideIdx + 1) % gallery.length;
@@ -790,7 +773,7 @@
         new Image().src = gallery[prevIdx];
       };
 
-      // --- MEDIA LOADER ---
+      // --- MEDIA LOADER (Image + Video Support) ---
       function loadMedia(
         src,
         container,
@@ -800,28 +783,35 @@
       ) {
         const img = document.createElement("img");
         img.className = className;
+
         img.onload = () => {
           container.appendChild(img);
           if (onSuccess) onSuccess(img);
         };
+
         img.onerror = () => {
           const vidSrc = src.replace(".webp", ".mp4");
+
           const vid = document.createElement("video");
           vid.className = className;
           vid.muted = true;
           vid.loop = true;
           vid.autoplay = true;
           vid.playsInline = true;
+
           vid.onloadeddata = () => {
             container.appendChild(vid);
             vid.play().catch((e) => console.log("Auto-play prevented", e));
             if (onSuccess) onSuccess(vid);
           };
+
           vid.onerror = () => {
             if (onError) onError();
           };
+
           vid.src = vidSrc;
         };
+
         img.src = src;
       }
 
@@ -857,17 +847,72 @@
         e.stopPropagation();
         if (!state.zoomedElement) return;
 
-        // Standard expand logic (mostly for desktop)
-        // ... (code same as before)
+        const el = state.zoomedElement;
+        const canvasW = canvas.offsetWidth;
+        const footerRect = footerEl.getBoundingClientRect();
+        const limitBottom = footerRect.top;
+
+        // Use dynamic size
+        const currentW = parseFloat(el.style.width);
+        const currentH = parseFloat(el.style.height);
+        const halfW = currentW / 2;
+        const halfH = currentH / 2;
+
+        let newCenterX = parseFloat(el.style.left);
+        let newCenterY = parseFloat(el.style.top);
+
+        const scaleTop = (2 * newCenterY) / currentH;
+        const scaleBottom = (2 * (limitBottom - newCenterY)) / currentH;
+        const scaleLeft = (2 * newCenterX) / currentW;
+        const scaleRight = (2 * (canvasW - newCenterX)) / currentW;
+
+        let finalScale = 1;
+
+        if (state.collisionEdges.left) {
+          const sRightAnchored = canvasW / currentW;
+          finalScale = Math.min(scaleTop, scaleBottom, sRightAnchored);
+          newCenterX = (currentW * finalScale) / 2;
+        } else if (state.collisionEdges.right) {
+          const sLeftAnchored = canvasW / currentW;
+          finalScale = Math.min(scaleTop, scaleBottom, sLeftAnchored);
+          newCenterX = canvasW - (currentW * finalScale) / 2;
+        } else if (state.collisionEdges.top) {
+          const sBottomAnchored = limitBottom / currentH;
+          finalScale = Math.min(scaleLeft, scaleRight, sBottomAnchored);
+          newCenterY = (currentH * finalScale) / 2;
+        } else if (state.collisionEdges.bottom) {
+          const sTopAnchored = limitBottom / currentH;
+          finalScale = Math.min(scaleLeft, scaleRight, sTopAnchored);
+          newCenterY = limitBottom - (currentH * finalScale) / 2;
+        } else {
+          const sW = canvasW / currentW;
+          const sH = limitBottom / currentH;
+          finalScale = Math.min(sW, sH);
+          newCenterX = canvasW / 2;
+          newCenterY = limitBottom / 2;
+        }
+
+        el.style.left = newCenterX + "px";
+        el.style.top = newCenterY + "px";
+        el.style.setProperty("--target-scale", finalScale);
+
+        expandBtn.style.opacity = "0";
+        expandBtn.style.pointerEvents = "none";
+        setTimeout(() => {
+          expandBtn.style.display = "none";
+        }, 300);
       });
 
-      // --- MOUSE MOVEMENT ---
+      // --- MOUSE MOVEMENT (Desktop) ---
       document.addEventListener("mousemove", (e) => {
         if (state.isMobile) return;
+
         const cx = e.clientX;
         const cy = e.clientY;
+
         customCursor.style.left = cx + "px";
         customCursor.style.top = cy + "px";
+
         let rotation = 0;
         if (state.isZoomed && state.zoomedElement) {
           const rect = state.zoomedElement.getBoundingClientRect();
@@ -889,20 +934,36 @@
           customCursor.innerHTML = "!";
         }
         customCursor.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
+
         handleTrailLogic(cx, cy);
       });
 
-      // --- TOUCH MOVEMENT ---
+      // --- TOUCH START (Reset Last Pos) ---
+      document.addEventListener(
+        "touchstart",
+        (e) => {
+          if (e.target.closest("model-viewer") || state.isZoomed) return;
+          const touch = e.touches[0];
+          state.lastX = touch.clientX;
+          state.lastY = touch.clientY;
+        },
+        { passive: true }
+      );
+
+      // --- TOUCH MOVEMENT (Mobile) ---
       document.addEventListener(
         "touchmove",
         (e) => {
           if (e.target.closest("model-viewer") || state.isZoomed) return;
-          if (!state.isMobile) return;
-          if (!state.isZoomed) e.preventDefault();
+          // Removed isMobile check to ensure touch always works if detected
+          if (!state.isZoomed) {
+            e.preventDefault();
+          }
 
           const touch = e.touches[0];
           const cx = touch.clientX;
           const cy = touch.clientY;
+
           handleTrailLogic(cx, cy);
         },
         { passive: false }
@@ -1042,7 +1103,6 @@
         }
 
         // DESKTOP SCALING...
-        // (Same as before)
         const canvasW = canvas.offsetWidth;
         const canvasH = canvas.offsetHeight;
         const footerRect = footerEl.getBoundingClientRect();
@@ -1095,18 +1155,8 @@
         });
 
         // Scroll to the selected image
-        // Using timeout to allow layout to settle
         setTimeout(() => {
-          const itemWidth = element.clientWidth; // Approx, might be scaled
-          // Actually, internal width is fixed (120px * scale)
-          // But inside the element, children are 100% width.
-          // Wait, if the container has overflow-x: auto, and width: 120px (internally),
-          // all children are stacked if flex-direction is row?
-          // Yes.
-          // Scroll amount:
-          element.scrollLeft = 0; // Start at beginning
-          // If we want to start at cover? Usually index 0.
-          // state.currentSlideIndex is 0 initially.
+          element.scrollLeft = 0;
         }, 10);
       }
 
