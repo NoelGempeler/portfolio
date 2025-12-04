@@ -2,17 +2,18 @@
 <html lang="en">
   <!-- 
   --- FILE: index.html ---
-  FINAL VERSION:
-  - Features: Trail Effect, Mobile Touch, Model Viewer (AR), Video Support.
-  - Logic: Dynamic Asset Loading (WebP/MP4), Auto-skip missing files.
-  - Style: Custom Font, Inverted/Justified Text, Mobile Safe Areas.
+  Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
+  Updated: 
+  - Implemented FLUID Mobile Carousel.
+  - Mobile zoom now renders 3 slides (Prev, Curr, Next) for smooth swiping.
+  - Touch gestures now drag the images in real-time (1:1 movement).
 -->
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Exact Edge Scaling</title>
 
-    <!-- CSP: Permissive settings to allow local blobs, model-viewer CDN, and inline scripts -->
+    <!-- CSP: Permissive settings -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' blob:; img-src * data: blob:; media-src * data: blob:; style-src * 'unsafe-inline'; object-src * data: blob:; font-src * data:;"
@@ -99,7 +100,7 @@
       #expand-btn {
         display: none;
         position: absolute;
-        z-index: 5500;
+        z-index: 5500; /* Ensure above zoomed image */
         width: 3.5rem;
         height: 3.5rem;
         border-radius: 50%;
@@ -326,7 +327,7 @@
         color: #ffffff;
         mix-blend-mode: difference;
         font-size: 1rem;
-        line-height: 1.15;
+        line-height: 1.1;
       }
 
       #footer-text {
@@ -340,8 +341,8 @@
         left: 5px;
         right: 5px;
         font-size: 1rem;
-        line-height: 1.35;
-        text-align: justify; /* JUSTIFIED */
+        line-height: 1.1;
+        text-align: justify;
         color: #ffffff;
         mix-blend-mode: difference;
         z-index: 40;
@@ -350,7 +351,6 @@
 
       @media (max-width: 800px) {
         .about-bottom-text {
-          /* MOBILE PADDING for browser bar */
           padding-bottom: calc(6rem + env(safe-area-inset-bottom));
         }
       }
@@ -360,14 +360,14 @@
         top: 20%;
         left: 50%;
         transform: translate(-50%, -50%);
-        text-align: justify;
+        text-align: center;
         max-width: 42rem;
         padding: 2rem;
         z-index: 40;
         pointer-events: none;
         color: #ffffff;
         mix-blend-mode: difference;
-        line-height: 1.3;
+        line-height: 1.1;
       }
 
       /* --- CANVAS HELPERS --- */
@@ -416,9 +416,28 @@
         object-fit: cover;
         pointer-events: none;
         -webkit-user-drag: none;
+        /* NEW: Mobile carousel logic positioning */
+        transition: transform 0s; /* Controlled via JS on mobile */
       }
 
-      video.slide-image {
+      /* Mobile Slide Specifics */
+      /* We will create 3 specific slots for mobile fluid scroll */
+      .mobile-slide {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+      }
+      /* When dragging, we disable CSS transition to follow finger exactly */
+      .mobile-slide.dragging {
+        transition: none !important;
+      }
+
+      /* Video styling */
+      video.slide-image,
+      video.mobile-slide {
         height: 94%;
         top: 3%;
         object-fit: contain;
@@ -459,7 +478,7 @@
         pointer-events: auto;
       }
 
-      /* --- ANIMATIONS --- */
+      /* --- ANIMATIONS (Desktop Only) --- */
       .animate-enter-right {
         animation: slideInRight 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
       }
@@ -531,8 +550,9 @@
 
     <!-- 5. ABOUT PAGE WITH MODEL-VIEWER -->
     <div id="about-page">
+      <!-- model-viewer logic directly integrated -->
       <model-viewer
-        src="scans/untitled1.glb"
+        src="untitled1.glb"
         ar
         ar-modes="webxr scene-viewer quick-look"
         camera-controls
@@ -583,6 +603,9 @@
         id="helper-text"
         class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
       >
+        <h1 class="text-[1rem] font-normal text-gray-900 mb-2 uppercase">
+          Interactive Trail
+        </h1>
         <p class="text-[1rem] font-normal text-gray-500">
           Move mouse to drop images. Click to expand & slide.
         </p>
@@ -623,32 +646,32 @@
         // Base cover (webp)
         const arr = [`bilder/${folder}/${folder}cover.webp`];
         // Slides 1 to 13 (webp)
-        for (let j = 1; j <= 13; j++) {
+        for (let j = 1; j <= 18; j++) {
           arr.push(`bilder/${folder}/${j}.webp`);
         }
         GALLERIES.push(arr);
       }
 
       const PROJECT_NAMES = [
-        "Bitwusst?",
-        "experimente",
-        "Lampen Trio",
-        "fotografik",
-        "24 Stunden",
-        "musikplakat",
-        "Perdus?",
-        "Gruss aus Luzern!",
+        "PLACEHOLDER PROJECT 1",
+        "PLACEHOLDER PROJECT 2",
+        "PLACEHOLDER PROJECT 3",
+        "PLACEHOLDER PROJECT 4",
+        "PLACEHOLDER PROJECT 5",
+        "PLACEHOLDER PROJECT 6",
+        "PLACEHOLDER PROJECT 7",
+        "PLACEHOLDER PROJECT 8",
       ];
 
       const CAPTIONS = [
-        "Bitwusst? Zwischen Denken und Rechnen flimmert ein schmaler Streifen Bewusstsein. Was trennt das Erkennen vom Erfassen, das Fühlen vom Verarbeiten? Vielleicht ist Bewusstsein kein Ort, sondern ein Übergang – ein leises Pulsieren zwisc Bitwusst? fragt, ob das Menschliche im Digitalen erlischt oder dort, inmitten von Algorithmen und Zufall, eine neue Form des Selbst erwacht – nicht aus Fleisch, sondern aus Verbindung.",
-        "experimente chundno trust",
-        "Lampen Trio Mein erstes Layout-Projekt: ein Katalog über Designerlampen. Dabei lernte ich Raster, Mikrotypografie und das Prinzip, gutes Design beruht auf Logik, nicht auf Zufall. Inspiriert von Josef Müller-Brockmann baute ich ein klares, rhythmisches Layout auf, das Raum und Typografie in Balance bringt. Lampen Trio war mein Einstieg in das Denken in Systemen und ein Crashkurs in grafischer Präzision.",
-        "fotografik chund auno trust",
-        "24 Stunden? Ein Tag, eine Klasse, unzählige Geschichten. Im interdisziplinären Projekt 24 Stunden entwickelte ich ein Layoutkonzept, das Zeit in Struktur übersetzt: ein Raster mit 24 Zeilen und 60 Spalten – jede Stunde, jede Minute. So fliessen die Bilder der Klasse wie ein Strom durch das Buch, während der Text verdrängt, verschoben und neu geordnet wurde. Eine visuelle Studie über Zeit, Rhythmus und das Verhältnis von Inhalt und Form.",
-        "musikplakatchundno trussssstt",
-        "Perdus? In einer Stadt, in der barocke Pracht auf soziale Unsichtbarkeit trifft, untersucht Perdus die Kluft zwischen Macht und Marginalisierung. Ausgehend der Place des Victoires verbinden sich visuelle Scans, historische Bezüge und sozialkritische Texte zu einem stillen Dialog über Verfall, Würde und Ungleichheit. Die Publikation lädt ein, Paris nicht nur als architektonisches Erbe zu sehen, sondern als Bühne der sozialen Fragen unserer Zeit.",
-        "Gruss aus Luzern! Kein Pilatus, keine Kapellbrücke – dafür Emil Manser. Für diese Postkarte wollte ich das unperfekte Luzern zeigen: roh, laut und echt. Ich programmierte mit Python einen Generator, der aus Mansers Schildertexten ein neues Porträt formte. So entstand ein digitales Bild, das Philosophie, Strasse und Code verbindet – ein Gruss aus dem echten Luzern, nicht dem touristischen.",
+        "Zwischen Denken und Rechnen...",
+        "Kopfzeichnen Ein leerer Kopf...",
+        "Lampen Trio...",
+        "Irrgarten...",
+        "24 Stunden...",
+        "Gruss aus Luzern!...",
+        "Perdus...",
+        "Perdus...",
       ];
 
       // --- STATE ---
@@ -722,7 +745,6 @@
         if (footerText) footerText.innerText = caption;
       };
 
-      // UPDATED: Restores the mailto link
       const resetInfo = () => {
         if (navCenter)
           navCenter.innerHTML =
@@ -750,9 +772,15 @@
       };
 
       // --- MEDIA LOADER (Image + Video Support) ---
-      function loadMedia(src, container, onSuccess, onError) {
+      function loadMedia(
+        src,
+        container,
+        onSuccess,
+        onError,
+        className = "slide-image"
+      ) {
         const img = document.createElement("img");
-        img.className = "slide-image";
+        img.className = className;
 
         img.onload = () => {
           container.appendChild(img);
@@ -763,7 +791,7 @@
           const vidSrc = src.replace(".webp", ".mp4");
 
           const vid = document.createElement("video");
-          vid.className = "slide-image";
+          vid.className = className;
           vid.muted = true;
           vid.loop = true;
           vid.autoplay = true;
@@ -929,6 +957,7 @@
       // --- SHARED TRAIL LOGIC ---
       function handleTrailLogic(cx, cy) {
         if (cy < CONFIG.navZoneHeight) return;
+
         if (state.isZoomed || canvas.classList.contains("hidden-canvas"))
           return;
 
@@ -955,7 +984,13 @@
           e.stopPropagation();
           return;
         }
-        if (state.isZoomed && target && target.classList.contains("zoomed")) {
+        if (
+          state.isZoomed &&
+          target &&
+          target.classList.contains("zoomed") &&
+          !state.isMobile
+        ) {
+          // Desktop click navigation (sides)
           handleSlideshowClick(e, target);
           e.stopPropagation();
         }
@@ -1036,15 +1071,13 @@
           if (sib !== element) sib.classList.add("faded");
         });
 
-        // MOBILE SCALING
+        // MOBILE SCALING & FLUID CAROUSEL SETUP
         if (state.isMobile) {
           const vpW = window.innerWidth;
-          const currentW = parseFloat(element.style.width); // 200px
-          const scale = (vpW / currentW) * 1.005; // Scale to fit width
+          const currentW = parseFloat(element.style.width);
+          const scale = (vpW / currentW) * 1.005;
 
           const newCenterX = vpW / 2;
-
-          // Keep current vertical position
           let newCenterY = parseFloat(element.style.top);
 
           const scaledH = parseFloat(element.style.height) * scale;
@@ -1061,6 +1094,9 @@
           element.style.top = newCenterY + "px";
           element.style.setProperty("--target-scale", scale);
           element.classList.add("zoomed");
+
+          // === NEW FLUID CAROUSEL SETUP ===
+          setupMobileCarousel(element);
           addSwipeListener(element);
           return;
         }
@@ -1070,23 +1106,20 @@
         const canvasH = canvas.offsetHeight;
         const footerRect = footerEl.getBoundingClientRect();
         const limitBottom = footerRect.top;
-
         const currentW = parseFloat(element.style.width);
         const currentH = parseFloat(element.style.height);
-
+        const halfW = currentW / 2;
+        const halfH = currentH / 2;
         const centerX = parseFloat(element.style.left);
         const centerY = parseFloat(element.style.top);
-
         const distTop = centerY;
         const distBottom = limitBottom - centerY;
         const distLeft = centerX;
         const distRight = canvasW - centerX;
-
         const sTop = distTop / (currentH / 2);
         const sBottom = distBottom / (currentH / 2);
         const sLeft = distLeft / (currentW / 2);
         const sRight = distRight / (currentW / 2);
-
         const finalScale = Math.min(sTop, sBottom, sLeft, sRight);
 
         const eps = 0.01;
@@ -1114,29 +1147,99 @@
         }
       }
 
-      // MOBILE SWIPE
+      // === FLUID MOBILE CAROUSEL LOGIC ===
+
+      function renderMobileCarousel(container) {
+        container.innerHTML = ""; // Clear existing
+        const gallery = GALLERIES[state.currentGalleryIndex];
+        const idx = state.currentSlideIndex;
+        const prevIdx = (idx - 1 + gallery.length) % gallery.length;
+        const nextIdx = (idx + 1) % gallery.length;
+
+        // Create 3 slides: Prev, Curr, Next
+        const createSlide = (i, posClass) => {
+          const src = gallery[i];
+          const wrapper = document.createElement("div");
+          wrapper.className = `mobile-slide ${posClass}`;
+
+          // Initial positions
+          if (posClass === "prev")
+            wrapper.style.transform = "translateX(-100%)";
+          if (posClass === "curr") wrapper.style.transform = "translateX(0)";
+          if (posClass === "next") wrapper.style.transform = "translateX(100%)";
+
+          loadMedia(src, wrapper, null, null, "slide-image");
+          container.appendChild(wrapper);
+          return wrapper;
+        };
+
+        createSlide(prevIdx, "prev");
+        createSlide(idx, "curr");
+        createSlide(nextIdx, "next");
+      }
+
+      function setupMobileCarousel(element) {
+        // Initial render
+        renderMobileCarousel(element);
+      }
+
+      // UPDATE: Fluid Swipe Listener
       function addSwipeListener(element) {
         let touchStartX = 0;
+        let currentTranslate = 0;
+
+        const getSlides = () => ({
+          prev: element.querySelector(".mobile-slide.prev"),
+          curr: element.querySelector(".mobile-slide.curr"),
+          next: element.querySelector(".mobile-slide.next"),
+        });
+
         const handleTouchStart = (e) => {
           touchStartX = e.touches[0].screenX;
-          element.classList.add("no-transition");
+          const slides = getSlides();
+          // Remove transition for drag
+          if (slides.prev) slides.prev.classList.add("dragging");
+          if (slides.curr) slides.curr.classList.add("dragging");
+          if (slides.next) slides.next.classList.add("dragging");
         };
 
         const handleTouchMove = (e) => {
           if (!state.zoomedElement) return;
-          const touchCurrentX = e.touches[0].screenX;
-          const deltaX = touchCurrentX - touchStartX;
-          element.style.transform = `translate(-50%, -50%) scale(var(--target-scale)) translateX(${deltaX}px)`;
+          const currentX = e.touches[0].screenX;
+          const delta = currentX - touchStartX;
+
+          // Move all 3 slides
+          const slides = getSlides();
+          if (slides.prev)
+            slides.prev.style.transform = `translateX(calc(-100% + ${delta}px))`;
+          if (slides.curr)
+            slides.curr.style.transform = `translateX(${delta}px)`;
+          if (slides.next)
+            slides.next.style.transform = `translateX(calc(100% + ${delta}px))`;
         };
 
         const handleTouchEnd = (e) => {
-          element.classList.remove("no-transition");
-          const touchEndX = e.changedTouches[0].screenX;
-          const deltaX = touchEndX - touchStartX;
-          element.style.transform = "";
-          if (deltaX < -50) changeSlide(1);
-          else if (deltaX > 50) changeSlide(-1);
-          element.removeEventListener("touchmove", handleTouchMove);
+          const endX = e.changedTouches[0].screenX;
+          const delta = endX - touchStartX;
+          const slides = getSlides();
+
+          // Restore transitions
+          if (slides.prev) slides.prev.classList.remove("dragging");
+          if (slides.curr) slides.curr.classList.remove("dragging");
+          if (slides.next) slides.next.classList.remove("dragging");
+
+          if (delta < -50) {
+            // Next Slide
+            updateMobileSlide(1);
+          } else if (delta > 50) {
+            // Prev Slide
+            updateMobileSlide(-1);
+          } else {
+            // Snap Back
+            if (slides.prev) slides.prev.style.transform = "translateX(-100%)";
+            if (slides.curr) slides.curr.style.transform = "translateX(0)";
+            if (slides.next) slides.next.style.transform = "translateX(100%)";
+          }
         };
 
         element.addEventListener("touchstart", handleTouchStart, {
@@ -1148,6 +1251,19 @@
         element.addEventListener("touchend", handleTouchEnd, { passive: true });
       }
 
+      // Mobile Slide Updater (Replaces changeSlide for mobile)
+      function updateMobileSlide(direction) {
+        const gallery = GALLERIES[state.currentGalleryIndex];
+        state.currentSlideIndex =
+          (state.currentSlideIndex + direction + gallery.length) %
+          gallery.length;
+        state.zoomedElement.dataset.slideIndex = state.currentSlideIndex;
+
+        // Re-render logic to reset DOM state
+        renderMobileCarousel(state.zoomedElement);
+      }
+
+      // Desktop Click Logic (unchanged)
       function handleSlideshowClick(e, element) {
         if (state.isAnimating) return;
         const rect = element.getBoundingClientRect();
@@ -1157,14 +1273,18 @@
         else changeSlide(-1);
       }
 
+      // Desktop Slide Logic (Original)
       function changeSlide(direction) {
         if (!state.zoomedElement) return;
         if (state.isAnimating) return;
-        state.isAnimating = true;
+
+        state.isAnimating = true; // Lock input
         const gallery = GALLERIES[state.currentGalleryIndex];
         let attemptIndex = state.currentSlideIndex + direction;
+
         if (attemptIndex >= gallery.length) attemptIndex = 0;
         if (attemptIndex < 0) attemptIndex = gallery.length - 1;
+
         const maxAttempts = gallery.length;
         let attempts = 0;
 
@@ -1174,6 +1294,7 @@
             state.isAnimating = false;
             return;
           }
+
           const url = gallery[index];
           loadMedia(
             url,
@@ -1196,6 +1317,7 @@
                 newEl.classList.add("animate-enter-left");
                 if (oldEl) oldEl.classList.add("animate-exit-right");
               }
+
               state.currentSlideIndex = index;
               state.zoomedElement.dataset.slideIndex = index;
               preloadNeighbors(state.currentGalleryIndex, index);
@@ -1226,9 +1348,18 @@
         expandBtn.style.opacity = "0";
         expandBtn.style.display = "none";
         document.body.classList.remove("zoomed-active");
+
         const zoomedEl = document.querySelector(".trail-image.zoomed");
         if (zoomedEl) {
           zoomedEl.classList.remove("zoomed");
+          // Clean up mobile carousel structure if present
+          if (state.isMobile) {
+            zoomedEl.innerHTML = "";
+            // restore cover
+            const cover = GALLERIES[state.currentGalleryIndex][0];
+            loadMedia(cover, zoomedEl, null, null);
+          }
+
           setTimeout(() => {
             if (zoomedEl) zoomedEl.style.removeProperty("--target-scale");
           }, 500);
