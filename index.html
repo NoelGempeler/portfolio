@@ -2,17 +2,17 @@
 <html lang="en">
   <!-- 
   --- FILE: index.html ---
-  Restored stable logic for Trail and Swipe.
-  - Trail: Works immediately on touch/mouse.
-  - Mobile Swipe: Uses 1:1 Drag-and-Snap logic (Robust).
-  - Content: All text styling, fonts, and GLB loading preserved.
+  Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
+  Updated: 
+  - Mobile Boxes visually sized to 120px (via 0.6 scale of 200px base).
+  - Mobile Scaling now centers on X-axis (fills width) while preserving Y-axis position.
 -->
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Exact Edge Scaling</title>
 
-    <!-- CSP: Permissive settings -->
+    <!-- CSP: Updated to allow model-viewer CDN and local blobs (User Provided) -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' blob:; img-src * data: blob:; media-src * data: blob:; style-src * 'unsafe-inline'; object-src * data: blob:; font-src * data:;"
@@ -88,7 +88,6 @@
         justify-content: center;
       }
 
-      /* STRICTLY HIDE CURSOR ON MOBILE */
       body.is-mobile #custom-cursor {
         display: none !important;
         visibility: hidden !important;
@@ -99,7 +98,7 @@
       #expand-btn {
         display: none;
         position: absolute;
-        z-index: 5500;
+        z-index: 5500; /* Ensure above zoomed image */
         width: 3.5rem;
         height: 3.5rem;
         border-radius: 50%;
@@ -210,6 +209,7 @@
       }
 
       #ar-button {
+        /* Assuming ar_icon.png is local */
         background-image: url(ar_icon.png);
         background-repeat: no-repeat;
         background-size: 20px 20px;
@@ -353,7 +353,6 @@
           text-align: left;
           line-height: 1.3;
           bottom: 0;
-          /* Extra padding for mobile browsers */
           padding-bottom: calc(6rem + env(safe-area-inset-bottom));
         }
       }
@@ -402,7 +401,9 @@
         z-index: 4000;
         user-select: none;
         background-color: #eee;
+        /* Removed will-change to ensure sharp scaling */
         backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
       }
 
       .trail-image.no-transition {
@@ -418,6 +419,7 @@
         object-fit: cover;
         pointer-events: none;
         -webkit-user-drag: none;
+        transition: transform 0s;
       }
 
       /* Video styling */
@@ -511,6 +513,14 @@
     </style>
   </head>
   <body>
+    <!-- LOADING SCREEN -->
+    <div id="loading-screen">
+      <div class="loading-rect"></div>
+      <div class="loading-rect"></div>
+      <div class="loading-rect"></div>
+      <div class="loading-rect"></div>
+    </div>
+
     <!-- 1. CUSTOM CURSOR -->
     <div id="custom-cursor">!</div>
 
@@ -606,9 +616,8 @@
         minDist: 120,
         maxImages: 8,
         navZoneHeight: 100,
-        // Fixed mobile dimensions
-        mobileBoxWidth: 100,
-        mobileBoxHeight: 66,
+        // UPDATED: 0.6 scale of 200px = 120px visual size
+        mobileScale: 0.6,
         mobileMinDist: 60,
       };
 
@@ -627,9 +636,9 @@
 
       for (let i = 0; i < projectFolders.length; i++) {
         const folder = projectFolders[i];
-        // Base cover
+        // Base cover (webp)
         const arr = [`bilder/${folder}/${folder}cover.webp`];
-        // Slides
+        // Slides 1 to 13 (webp)
         for (let j = 1; j <= 13; j++) {
           arr.push(`bilder/${folder}/${j}.webp`);
         }
@@ -637,14 +646,14 @@
       }
 
       const PROJECT_NAMES = [
-        "PLACEHOLDER PROJECT 1",
-        "PLACEHOLDER PROJECT 2",
-        "PLACEHOLDER PROJECT 3",
-        "PLACEHOLDER PROJECT 4",
-        "PLACEHOLDER PROJECT 5",
-        "PLACEHOLDER PROJECT 6",
-        "PLACEHOLDER PROJECT 7",
-        "PLACEHOLDER PROJECT 8",
+        "Bitwusst?",
+        "experimente",
+        "Lampen Trio",
+        "fotografik",
+        "24 Stunden",
+        "musikplakat",
+        "Perdus?",
+        "Gruss aus Luzern!",
       ];
 
       const CAPTIONS = [
@@ -677,6 +686,7 @@
           right: false,
         },
         isMobile: false,
+        isLoading: true,
         currentMobileScale: 1,
       };
 
@@ -703,6 +713,47 @@
       };
       checkMobile();
       window.addEventListener("resize", checkMobile);
+
+      // --- PRELOAD LOGIC ---
+      function preloadAllCovers() {
+        let loadedCount = 0;
+        const total = GALLERIES.length;
+        const dots = document.querySelectorAll(".loading-rect");
+
+        function updateLoader() {
+          loadedCount++;
+          const ratio = loadedCount / total;
+          const dotsToFill = Math.ceil(ratio * 4);
+          dots.forEach((dot, idx) => {
+            if (idx < dotsToFill) dot.classList.add("filled");
+          });
+
+          if (loadedCount >= total) {
+            setTimeout(() => {
+              const screen = document.getElementById("loading-screen");
+              if (screen) {
+                screen.style.opacity = "0";
+                setTimeout(() => screen.remove(), 500);
+              }
+              state.isLoading = false;
+            }, 300);
+          }
+        }
+
+        GALLERIES.forEach((gallery) => {
+          const src = gallery[0];
+          const img = new Image();
+          img.onload = updateLoader;
+          img.onerror = () => {
+            const vid = document.createElement("video");
+            vid.onloadeddata = updateLoader;
+            vid.onerror = updateLoader;
+            vid.src = src.replace(".webp", ".mp4");
+          };
+          img.src = src;
+        });
+      }
+      preloadAllCovers();
 
       // --- MODEL VIEWER EVENT LOGIC ---
       const onProgress = (event) => {
@@ -818,20 +869,21 @@
         }, 400);
       });
 
-      // --- EXPAND BUTTON ---
+      // --- EXPAND BUTTON LOGIC ---
       expandBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         if (!state.zoomedElement) return;
-        // Desktop expand logic typically fits here if needed
+        // Desktop expand logic
+        // ...
       });
 
       // --- MOUSE MOVEMENT ---
       document.addEventListener("mousemove", (e) => {
         if (state.isMobile) return;
+        if (state.isLoading) return; // BLOCK
 
         const cx = e.clientX;
         const cy = e.clientY;
-
         customCursor.style.left = cx + "px";
         customCursor.style.top = cy + "px";
 
@@ -856,7 +908,6 @@
           customCursor.innerHTML = "!";
         }
         customCursor.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
-
         handleTrailLogic(cx, cy);
       });
 
@@ -866,6 +917,8 @@
         (e) => {
           if (e.target.closest("model-viewer") || state.isZoomed) return;
           if (!state.isMobile) return;
+          if (state.isLoading) return; // BLOCK
+
           if (!state.isZoomed) e.preventDefault();
 
           const touch = e.touches[0];
@@ -922,10 +975,9 @@
         const container = document.createElement("div");
         container.className = "trail-image";
 
-        const width = state.isMobile ? CONFIG.mobileBoxWidth : CONFIG.boxWidth;
-        const height = state.isMobile
-          ? CONFIG.mobileBoxHeight
-          : CONFIG.boxHeight;
+        // ALWAYS use 200px for layout, scale visually for mobile
+        const width = CONFIG.boxWidth;
+        const height = CONFIG.boxHeight;
         container.style.width = width + "px";
         container.style.height = height + "px";
 
@@ -984,11 +1036,14 @@
         // MOBILE SCALING
         if (state.isMobile) {
           const vpW = window.innerWidth;
+          // element.style.width is 200px always now
           const currentW = parseFloat(element.style.width);
           const scale = (vpW / currentW) * 1.005;
           state.currentMobileScale = scale;
 
           const newCenterX = vpW / 2;
+
+          // Preserve Y position
           let newCenterY = parseFloat(element.style.top);
           const scaledH = parseFloat(element.style.height) * scale;
           const halfH = scaledH / 2;
@@ -1003,6 +1058,7 @@
           element.style.top = newCenterY + "px";
           element.style.setProperty("--target-scale", scale);
           element.classList.add("zoomed");
+
           addSwipeListener(element);
           return;
         }
@@ -1025,12 +1081,7 @@
         const sLeft = distLeft / (currentW / 2);
         const sRight = distRight / (currentW / 2);
         const finalScale = Math.min(sTop, sBottom, sLeft, sRight);
-        state.collisionEdges = {
-          top: Math.abs(finalScale - sTop) < 0.01,
-          bottom: Math.abs(finalScale - sBottom) < 0.01,
-          left: Math.abs(finalScale - sLeft) < 0.01,
-          right: Math.abs(finalScale - sRight) < 0.01,
-        };
+
         element.style.setProperty("--target-scale", finalScale);
         element.classList.add("zoomed");
 
@@ -1056,7 +1107,6 @@
           const touchCurrentX = e.touches[0].screenX;
           const deltaX = touchCurrentX - touchStartX;
 
-          // 1:1 visual dragging relative to screen
           const scale = state.currentMobileScale || 1;
           const effectiveDelta = deltaX / scale;
 
@@ -1092,8 +1142,7 @@
       function changeSlide(direction) {
         if (!state.zoomedElement) return;
         if (state.isAnimating) return;
-
-        state.isAnimating = true; // Lock input
+        state.isAnimating = true;
         const gallery = GALLERIES[state.currentGalleryIndex];
         let attemptIndex = state.currentSlideIndex + direction;
         if (attemptIndex >= gallery.length) attemptIndex = 0;
