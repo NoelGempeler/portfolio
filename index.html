@@ -4,8 +4,7 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Added '100dvh' to main containers to handle mobile browser bars correctly.
-  - Adjusted About Text positioning on mobile to sit 10px above the safe area/search bar.
+  - Scale Button: Does NOT disappear after use. Allows infinite cycling/scaling.
 -->
   <head>
     <meta charset="utf-8" />
@@ -80,6 +79,7 @@
         transform: translate(-50%, -50%);
         transition: transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
         will-change: transform, top, left;
+        /* Ensure centered text for arrows */
         text-align: center;
         width: 3rem;
         height: 3rem;
@@ -95,29 +95,9 @@
         opacity: 0 !important;
       }
 
-      /* --- EXPAND BUTTON --- */
+      /* --- EXPAND BUTTON (Hidden/Replaced) --- */
       #expand-btn {
         display: none;
-        position: absolute;
-        z-index: 5500; /* Ensure above zoomed image */
-        width: 3.5rem;
-        height: 3.5rem;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.95);
-        color: black;
-        border: 1px solid black;
-        font-size: 1.8rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transform: translate(-50%, -50%);
-        opacity: 0;
-        transition: opacity 0.3s ease, transform 0.2s ease;
-        pointer-events: auto;
-      }
-      #expand-btn:hover {
-        transform: translate(-50%, -50%) scale(1.1);
-        background: white;
       }
 
       /* --- MAIN LAYOUT --- */
@@ -125,7 +105,6 @@
         position: relative;
         width: 100vw;
         height: 100vh;
-        /* UPDATED: Use dynamic viewport height for mobile browsers */
         height: 100dvh;
         overflow: hidden;
         background-color: #ffffff;
@@ -140,7 +119,6 @@
         left: 0;
         width: 100vw;
         height: 100vh;
-        /* UPDATED: Use dynamic viewport height for mobile browsers */
         height: 100dvh;
         background-color: #ffffff;
         z-index: 2000;
@@ -214,7 +192,6 @@
       }
 
       #ar-button {
-        /* Assuming ar_icon.png is local */
         background-image: url(ar_icon.png);
         background-repeat: no-repeat;
         background-size: 20px 20px;
@@ -279,7 +256,7 @@
         color: #ffffff;
         mix-blend-mode: difference;
         display: grid;
-        grid-template-columns: max-content 35rem max-content;
+        grid-template-columns: max-content max-content max-content;
         column-gap: 6rem;
         align-items: start;
         justify-content: start;
@@ -312,12 +289,73 @@
         overflow: hidden;
         text-overflow: ellipsis;
         text-align: left;
+        /* Width set by JS to lock layout */
       }
 
       #nav-center a {
         text-decoration: none;
         color: inherit;
         cursor: pointer;
+      }
+
+      /* SCALE BUTTON (Desktop) - INVERTED & GLITCH STYLE */
+      #nav-scale {
+        position: absolute;
+        right: 0;
+        top: 0;
+        display: none;
+        cursor: pointer;
+        pointer-events: auto;
+        background-color: #000;
+        color: #fff;
+        padding: 2px 6px;
+        font-size: 1rem;
+        /* Reset mix-blend to normal so black background covers white bg */
+        mix-blend-mode: normal;
+        user-select: none;
+        /* Establish stacking context for blending */
+        z-index: 0;
+      }
+
+      /* Glitch text behind */
+      #nav-scale::before {
+        content: "image";
+        position: absolute;
+        top: 2px;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        color: #fff;
+        background: transparent;
+        opacity: 0;
+        z-index: -1;
+        pointer-events: none;
+
+        /* Subtle offset */
+
+        mix-blend-mode: multiply;
+      }
+
+      #nav-scale:hover::before {
+        opacity: 1;
+      }
+
+      @keyframes glitch-anim {
+        0% {
+          transform: translate(2px, 0);
+        }
+        25% {
+          transform: translate(-2px, 1px);
+        }
+        50% {
+          transform: translate(0px, -1px);
+        }
+        75% {
+          transform: translate(-1px, 0);
+        }
+        100% {
+          transform: translate(1px, 1px);
+        }
       }
 
       /* --- FOOTER --- */
@@ -331,7 +369,7 @@
         color: #ffffff;
         mix-blend-mode: difference;
         font-size: 1rem;
-        line-height: 1.1;
+        line-height: 1.15;
       }
 
       #footer-text {
@@ -345,7 +383,7 @@
         left: 5px;
         right: 5px;
         font-size: 1rem;
-        line-height: 1.1;
+        line-height: 1.35;
         text-align: justify;
         color: #ffffff;
         mix-blend-mode: difference;
@@ -353,14 +391,12 @@
         pointer-events: none;
       }
 
-      /* MOBILE SPECIFIC ABOUT TEXT */
       @media (max-width: 800px) {
         .about-bottom-text {
           text-align: left;
           line-height: 1.3;
-          /* UPDATED: 10px above bottom + safe area (fixes overlap with search bar) */
-          bottom: 10px;
-          padding-bottom: env(safe-area-inset-bottom);
+          bottom: 0;
+          padding-bottom: calc(6rem + env(safe-area-inset-bottom));
         }
       }
 
@@ -394,14 +430,12 @@
       /* --- TRAIL IMAGES --- */
       .trail-image {
         position: absolute;
-        /* Size set by JS */
+        width: 200px;
+        height: 133px;
         border-radius: 0;
         overflow: hidden;
         transform-origin: center center;
         transform: translate(-50%, -50%);
-        /* Scale var for mobile */
-        transform: translate(-50%, -50%) scale(var(--idle-scale, 1));
-
         transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
           opacity 0.3s ease, left 0.5s cubic-bezier(0.23, 1, 0.32, 1),
           top 0.5s cubic-bezier(0.23, 1, 0.32, 1);
@@ -427,7 +461,6 @@
         transition: transform 0s;
       }
 
-      /* Video styling */
       video.slide-image {
         height: 94%;
         top: 3%;
@@ -441,8 +474,9 @@
       }
 
       .trail-image.zoomed {
-        z-index: 5000; /* Max priority */
-        transform: translate(-50%, -50%) scale(var(--target-scale));
+        z-index: 5000;
+        transform: translate(-50%, -50%)
+          translate(var(--tx, 0px), var(--ty, 0px)) scale(var(--target-scale));
       }
 
       .trail-image.faded {
@@ -524,11 +558,11 @@
         width: 100vw;
         height: 100vh;
         background: white;
-        z-index: 99999;
+        z-index: 99999; /* Highest priority */
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: 8px; /* Spacing between rectangles */
         pointer-events: auto;
         transition: opacity 0.5s ease;
       }
@@ -556,10 +590,7 @@
     </div>
 
     <!-- 1. CUSTOM CURSOR -->
-    <div id="custom-cursor">!</div>
-
-    <!-- 2. EXPAND BUTTON -->
-    <button id="expand-btn" aria-label="Expand Image">&#10529;</button>
+    <div id="custom-cursor">+</div>
 
     <!-- 3. TOP NAVIGATION -->
     <nav>
@@ -569,6 +600,9 @@
         <a href="mailto:giger@grafik.ch" target="_blank">giger@grafik.ch</a>
       </div>
       <div id="nav-about" class="nav-text">über</div>
+
+      <!-- Scale Button (Desktop) -->
+      <div id="nav-scale" class="nav-text">scale</div>
     </nav>
 
     <!-- 4. FOOTER -->
@@ -656,6 +690,7 @@
         mobileMinDist: 60,
         mobileBoxWidth: 120,
         mobileBoxHeight: 80,
+        edgeGap: 0, // STRICT BOUNDARIES (Pixel Perfect)
       };
 
       // --- ASSETS ---
@@ -673,35 +708,32 @@
 
       for (let i = 0; i < projectFolders.length; i++) {
         const folder = projectFolders[i];
-        // Base cover (webp)
         const arr = [`bilder/${folder}/${folder}cover.webp`];
-        // Slides 1 to 13 (webp)
-        for (let j = 1; j <= 13; j++) {
+        for (let j = 1; j <= 25; j++) {
           arr.push(`bilder/${folder}/${j}.webp`);
         }
         GALLERIES.push(arr);
       }
 
       const PROJECT_NAMES = [
-        "PLACEHOLDER PROJECT 1",
-        "PLACEHOLDER PROJECT 2",
-        "PLACEHOLDER PROJECT 3",
-        "PLACEHOLDER PROJECT 4",
-        "PLACEHOLDER PROJECT 5",
-        "PLACEHOLDER PROJECT 6",
-        "PLACEHOLDER PROJECT 7",
-        "PLACEHOLDER PROJECT 8",
+        "BITWUSST?",
+        "ARCHIVE",
+        "Lampen Trio",
+        "fotografik",
+        "24 Stunden",
+        "musikplakat",
+        "Perdus?",
+        "Gruss aus Luzern!",
       ];
-
       const CAPTIONS = [
-        "Bitwusst? Zwischen Denken und Rechnen flimmert ein schmaler Streifen Bewusstsein. Was trennt das Erkennen vom Erfassen, das Fühlen vom Verarbeiten? Vielleicht ist Bewusstsein kein Ort, sondern ein Übergang – ein leises Pulsieren zwischen Mensch und Maschine. Bitwusst? fragt, ob das Menschliche im Digitalen erlischt oder dort, inmitten von Algorithmen und Zufall, eine neue Form des Selbst erwacht – nicht aus Fleisch, sondern aus Verbindung.",
-        "experimente chundno trust",
-        "Lampen Trio Mein erstes Layout-Projekt: ein Katalog über Designerlampen. Dabei lernte ich Raster, Mikrotypografie und das Prinzip, gutes Design beruht auf Logik, nicht auf Zufall. Inspiriert von Josef Müller-Brockmann baute ich ein klares, rhythmisches Layout auf, das Raum und Typografie in Balance bringt. Lampen Trio war mein Einstieg in das Denken in Systemen und ein Crashkurs in grafischer Präzision.",
+        "BITWUSST? acts as an interface between scientific theory and visual communication. Comprising a detailed report and an accompanying poster, the project traces a spectrum of consciousness extending from atoms to algorithms. Grounded in Integrated Information Theory and Panpsychism, it investigates whether awareness is a fundamental property of matter itself or merely a result of complex processing. The work questions if feeling necessitates biological flesh, or if digital sensors can generate genuine presence. Ultimately, BITWUSST? encourages a quiet reflection on the nature of reality, bridging the organic, the mineral, and the digital.",
+        "A sandbox for visual curiosity. Ranging from TouchDesigner jams to video experiments, this is where I hunt for weird textures and unexpected aesthetics. It’s a space to play, break things, and embrace happy accidents—treating software like a messy material to see what strange visuals come out the other side.",
+        "A sandbox for visual curiosity. Ranging from TouchDesigner jams to video experiments, this is where I hunt for weird textures and unexpected aesthetics. It’s a space to play, break things, and embrace happy accidents—treating software like a messy material to see what strange visuals come out the other side.",
         "fotografik chund auno trust",
-        "24 Stunden? Ein Tag, eine Klasse, unzählige Geschichten. Im interdisziplinären Projekt 24 Stunden entwickelte ich ein Layoutkonzept, das Zeit in Struktur übersetzt: ein Raster mit 24 Zeilen und 60 Spalten – jede Stunde, jede Minute. So fliessen die Bilder der Klasse wie ein Strom durch das Buch, während der Text verdrängt, verschoben und neu geordnet wurde. Eine visuelle Studie über Zeit, Rhythmus und das Verhältnis von Inhalt und Form.",
+        "24 Stunden? Ein Tag, eine Klasse...",
         "musikplakatchundno trussssstt",
-        "Perdus? In einer Stadt, in der barocke Pracht auf soziale Unsichtbarkeit trifft, untersucht Perdus die Kluft zwischen Macht und Marginalisierung. Ausgehend der Place des Victoires verbinden sich visuelle Scans, historische Bezüge und sozialkritische Texte zu einem stillen Dialog über Verfall, Würde und Ungleichheit. Die Publikation lädt ein, Paris nicht nur als architektonisches Erbe zu sehen, sondern als Bühne der sozialen Fragen unserer Zeit.",
-        "Gruss aus Luzern! Kein Pilatus, keine Kapellbrücke – dafür Emil Manser. Für diese Postkarte wollte ich das unperfekte Luzern zeigen: roh, laut und echt. Ich programmierte mit Python einen Generator, der aus Mansers Schildertexten ein neues Porträt formte. So entstand ein digitales Bild, das Philosophie, Strasse und Code verbindet – ein Gruss aus dem echten Luzern, nicht dem touristischen.",
+        "Perdus? In einer Stadt...",
+        "Gruss aus Luzern! Kein Pilatus...",
       ];
 
       // --- STATE ---
@@ -725,6 +757,11 @@
         isMobile: false,
         isLoading: true,
         currentMobileScale: 1,
+        // SCALING STATE
+        anchorEdge: null,
+        currentScale: 1,
+        currentTx: 0,
+        currentTy: 0,
       };
 
       // --- DOM REFERENCES ---
@@ -735,6 +772,7 @@
       const navCenter = document.getElementById("nav-center");
       const navHome = document.getElementById("nav-home");
       const navAbout = document.getElementById("nav-about");
+      const navScale = document.getElementById("nav-scale");
       const footerText = document.getElementById("footer-text");
       const footerEl = document.querySelector("footer");
       const customCursor = document.getElementById("custom-cursor");
@@ -751,12 +789,24 @@
       checkMobile();
       window.addEventListener("resize", checkMobile);
 
+      // --- FIX NAV WIDTH ---
+      // Locks the width of the center container to the email address
+      // to prevent layout shifts when text changes on hover.
+      document.fonts.ready.then(() => {
+        if (!state.isMobile) {
+          // Measure natural width of email
+          navCenter.style.width = "auto";
+          const width = navCenter.offsetWidth;
+          // Apply fixed width (+1px buffer)
+          navCenter.style.width = width + 1 + "px";
+        }
+      });
+
       // --- PRELOAD LOGIC ---
       function preloadAllCovers() {
         let loadedCount = 0;
         const total = GALLERIES.length;
         const dots = document.querySelectorAll(".loading-rect");
-
         function updateLoader() {
           loadedCount++;
           const ratio = loadedCount / total;
@@ -764,7 +814,6 @@
           dots.forEach((dot, idx) => {
             if (idx < dotsToFill) dot.classList.add("filled");
           });
-
           if (loadedCount >= total) {
             setTimeout(() => {
               const screen = document.getElementById("loading-screen");
@@ -776,7 +825,6 @@
             }, 300);
           }
         }
-
         GALLERIES.forEach((gallery) => {
           const src = gallery[0];
           const img = new Image();
@@ -844,7 +892,6 @@
         new Image().src = gallery[prevIdx];
       };
 
-      // --- MEDIA LOADER ---
       function loadMedia(
         src,
         container,
@@ -880,13 +927,24 @@
       }
 
       // --- NAVIGATION EVENTS ---
+      navHome.addEventListener("click", () => {
+        state.aboutActive = false;
+        aboutPage.style.opacity = "0";
+        setTimeout(() => {
+          aboutPage.classList.remove("active");
+          canvas.classList.remove("hidden-canvas");
+        }, 400);
+        if (state.isZoomed) zoomOut();
+        else resetTrail();
+      });
+
       navAbout.addEventListener("click", () => {
         resetInfo();
         if (state.isZoomed) {
           state.isZoomed = false;
           state.zoomedElement = null;
           document.body.classList.remove("zoomed-active");
-          expandBtn.style.display = "none";
+          navScale.style.display = "none";
         }
         canvas.classList.add("hidden-canvas");
         state.aboutActive = true;
@@ -896,31 +954,173 @@
         }, 400);
       });
 
-      navHome.addEventListener("click", () => {
-        state.aboutActive = false;
-        aboutPage.style.opacity = "0";
-        setTimeout(() => {
-          aboutPage.classList.remove("active");
-          canvas.classList.remove("hidden-canvas");
-          resetTrail();
-        }, 400);
+      // --- INFINITE SCALE LOGIC ---
+      navScale.addEventListener("click", () => {
+        if (!state.zoomedElement || state.isMobile) return;
+
+        const el = state.zoomedElement;
+        const rect = el.getBoundingClientRect();
+        const footerRect = footerEl.getBoundingClientRect();
+        const limitBottom = footerRect.top; // Project Text Top
+        const limitRight = window.innerWidth;
+
+        // 1. DETECT ANCHOR (Current edges touching)
+        // Tolerance of 2px
+        const isTop = Math.abs(rect.top) < 2;
+        const isBottom = Math.abs(rect.bottom - limitBottom) < 2;
+        const isLeft = Math.abs(rect.left) < 2;
+        const isRight = Math.abs(rect.right - limitRight) < 2;
+
+        // 1.1 Impossible Case: Touching Opposite Edges
+        if ((isTop && isBottom) || (isLeft && isRight)) {
+          // Cannot scale further in locked dimension
+          if (isTop && isBottom && isLeft && isRight) return;
+          if (isTop && isBottom) return;
+          if (isLeft && isRight) return;
+        }
+
+        // 2. DETERMINE EFFECTIVE ANCHOR (Handling Corners)
+        let anchor = state.anchorEdge;
+
+        // Detect Corners (Overrides single edge)
+        if (isTop && isLeft) anchor = "top-left";
+        else if (isTop && isRight) anchor = "top-right";
+        else if (isBottom && isLeft) anchor = "bottom-left";
+        else if (isBottom && isRight) anchor = "bottom-right";
+        else if (isTop) anchor = "top";
+        else if (isBottom) anchor = "bottom";
+        else if (isLeft) anchor = "left";
+        else if (isRight) anchor = "right";
+
+        state.anchorEdge = anchor;
+
+        // 3. CALCULATE GROWTH POTENTIAL
+        let ratios = [];
+        const currentW = rect.width;
+        const currentH = rect.height;
+        const spaceTop = rect.top;
+        const spaceBottom = limitBottom - rect.bottom;
+        const spaceLeft = rect.left;
+        const spaceRight = limitRight - rect.right;
+
+        if (anchor === "top") {
+          if (spaceBottom > 1)
+            ratios.push({ r: (currentH + spaceBottom) / currentH, type: "h" });
+          const sideSpace = Math.min(spaceLeft, spaceRight);
+          if (sideSpace > 1)
+            ratios.push({
+              r: (currentW + 2 * sideSpace) / currentW,
+              type: "w_sym",
+            });
+        } else if (anchor === "bottom") {
+          if (spaceTop > 1)
+            ratios.push({ r: (currentH + spaceTop) / currentH, type: "h" });
+          const sideSpace = Math.min(spaceLeft, spaceRight);
+          if (sideSpace > 1)
+            ratios.push({
+              r: (currentW + 2 * sideSpace) / currentW,
+              type: "w_sym",
+            });
+        } else if (anchor === "left") {
+          if (spaceRight > 1)
+            ratios.push({ r: (currentW + spaceRight) / currentW, type: "w" });
+          const vertSpace = Math.min(spaceTop, spaceBottom);
+          if (vertSpace > 1)
+            ratios.push({
+              r: (currentH + 2 * vertSpace) / currentH,
+              type: "h_sym",
+            });
+        } else if (anchor === "right") {
+          if (spaceLeft > 1)
+            ratios.push({ r: (currentW + spaceLeft) / currentW, type: "w" });
+          const vertSpace = Math.min(spaceTop, spaceBottom);
+          if (vertSpace > 1)
+            ratios.push({
+              r: (currentH + 2 * vertSpace) / currentH,
+              type: "h_sym",
+            });
+        } else if (anchor === "top-left") {
+          if (spaceBottom > 1)
+            ratios.push({ r: (currentH + spaceBottom) / currentH, type: "h" });
+          if (spaceRight > 1)
+            ratios.push({ r: (currentW + spaceRight) / currentW, type: "w" });
+        } else if (anchor === "top-right") {
+          if (spaceBottom > 1)
+            ratios.push({ r: (currentH + spaceBottom) / currentH, type: "h" });
+          if (spaceLeft > 1)
+            ratios.push({ r: (currentW + spaceLeft) / currentW, type: "w" });
+        } else if (anchor === "bottom-left") {
+          if (spaceTop > 1)
+            ratios.push({ r: (currentH + spaceTop) / currentH, type: "h" });
+          if (spaceRight > 1)
+            ratios.push({ r: (currentW + spaceRight) / currentW, type: "w" });
+        } else if (anchor === "bottom-right") {
+          if (spaceTop > 1)
+            ratios.push({ r: (currentH + spaceTop) / currentH, type: "h" });
+          if (spaceLeft > 1)
+            ratios.push({ r: (currentW + spaceLeft) / currentW, type: "w" });
+        }
+
+        ratios = ratios.filter((item) => item.r > 1.005);
+        ratios.sort((a, b) => a.r - b.r);
+
+        if (ratios.length === 0) {
+          // No more space to grow, reset to initial
+          state.currentScale = state.initialScale;
+          state.currentTx = 0;
+          state.currentTy = 0;
+          el.style.setProperty("--target-scale", state.initialScale);
+          el.style.setProperty("--tx", "0px");
+          el.style.setProperty("--ty", "0px");
+          return;
+        }
+
+        const best = ratios[0];
+        const growthFactor = best.r;
+        const nextScale = state.currentScale * growthFactor;
+        state.currentScale = nextScale;
+
+        let dX = 0;
+        let dY = 0;
+        const rawGrowthW = currentW * (growthFactor - 1);
+        const rawGrowthH = currentH * (growthFactor - 1);
+
+        if (anchor === "top") dY = rawGrowthH / 2;
+        else if (anchor === "bottom") dY = -rawGrowthH / 2;
+        else if (anchor === "left") dX = rawGrowthW / 2;
+        else if (anchor === "right") dX = -rawGrowthW / 2;
+        else if (anchor === "top-left") {
+          dX = rawGrowthW / 2;
+          dY = rawGrowthH / 2;
+        } else if (anchor === "top-right") {
+          dX = -rawGrowthW / 2;
+          dY = rawGrowthH / 2;
+        } else if (anchor === "bottom-left") {
+          dX = rawGrowthW / 2;
+          dY = -rawGrowthH / 2;
+        } else if (anchor === "bottom-right") {
+          dX = -rawGrowthW / 2;
+          dY = -rawGrowthH / 2;
+        }
+
+        state.currentTx += dX;
+        state.currentTy += dY;
+
+        el.style.setProperty("--target-scale", nextScale);
+        el.style.setProperty("--tx", state.currentTx + "px");
+        el.style.setProperty("--ty", state.currentTy + "px");
+
+        // Button stays visible (infinite loop possible if space allows)
+        // navScale.style.display = "none"; // REMOVED to allow infinite
       });
 
-      // --- EXPAND BUTTON LOGIC ---
-      expandBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (!state.zoomedElement) return;
-        // Desktop expand logic
-      });
-
-      // --- MOUSE MOVEMENT (Desktop) ---
+      // --- MOUSE MOVEMENT ---
       document.addEventListener("mousemove", (e) => {
         if (state.isMobile) return;
-        if (state.isLoading) return; // BLOCK
+        if (state.isLoading) return;
 
         const cx = e.clientX;
         const cy = e.clientY;
-
         customCursor.style.left = cx + "px";
         customCursor.style.top = cy + "px";
 
@@ -938,26 +1138,23 @@
               relX < rect.width / 2 ? "&larr;" : "&rarr;";
             rotation = 0;
           } else {
-            customCursor.innerHTML = "!";
+            customCursor.innerHTML = "+";
             rotation = 0;
           }
         } else {
-          customCursor.innerHTML = "!";
+          customCursor.innerHTML = "+";
         }
         customCursor.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
         handleTrailLogic(cx, cy);
       });
 
-      // --- TOUCH MOVEMENT ---
       document.addEventListener(
         "touchmove",
         (e) => {
           if (e.target.closest("model-viewer") || state.isZoomed) return;
           if (!state.isMobile) return;
-          if (state.isLoading) return; // BLOCK
-
+          if (state.isLoading) return;
           if (!state.isZoomed) e.preventDefault();
-
           const touch = e.touches[0];
           const cx = touch.clientX;
           const cy = touch.clientY;
@@ -966,7 +1163,6 @@
         { passive: false }
       );
 
-      // --- TOUCH START (Reset) ---
       document.addEventListener(
         "touchstart",
         (e) => {
@@ -1033,7 +1229,6 @@
         const container = document.createElement("div");
         container.className = "trail-image";
 
-        // UPDATED: Use mobile dimensions if on mobile
         const width = state.isMobile ? CONFIG.mobileBoxWidth : CONFIG.boxWidth;
         const height = state.isMobile
           ? CONFIG.mobileBoxHeight
@@ -1041,7 +1236,6 @@
         container.style.width = width + "px";
         container.style.height = height + "px";
 
-        // Apply Visual Scale for Mobile (using transform)
         if (state.isMobile) {
           container.style.setProperty("--idle-scale", CONFIG.mobileScale);
         } else {
@@ -1073,9 +1267,7 @@
           }
         });
         container.addEventListener("mouseleave", () => {
-          if (!state.isZoomed) {
-            resetInfo();
-          }
+          if (!state.isZoomed) resetInfo();
         });
         canvas.appendChild(container);
       }
@@ -1103,8 +1295,6 @@
           state.currentMobileScale = scale;
 
           const newCenterX = vpW / 2;
-
-          // Center logic for mobile with clamping
           let newCenterY = parseFloat(element.style.top);
           const scaledH = parseFloat(element.style.height) * scale;
           const halfH = scaledH / 2;
@@ -1112,14 +1302,10 @@
           const footerRect = footerEl.getBoundingClientRect();
           const limitBottom = footerRect.top - 10;
 
-          // 1. Check Bottom Collision
           if (newCenterY + halfH > limitBottom) {
             newCenterY = limitBottom - halfH;
           }
-
-          // 2. Check Top Collision (0 is top of window)
           if (newCenterY - halfH < 0) {
-            // Shift down so top edge touches 0
             newCenterY = 0 + halfH;
           }
 
@@ -1132,13 +1318,16 @@
           return;
         }
 
-        // DESKTOP SCALING
+        // DESKTOP SCALING (Initial)
         const canvasW = canvas.offsetWidth;
         const canvasH = canvas.offsetHeight;
         const footerRect = footerEl.getBoundingClientRect();
-        const limitBottom = footerRect.top;
+        const limitBottom = footerRect.top; // Strict Boundary
+
         const currentW = parseFloat(element.style.width);
         const currentH = parseFloat(element.style.height);
+        const halfW = currentW / 2;
+        const halfH = currentH / 2;
         const centerX = parseFloat(element.style.left);
         const centerY = parseFloat(element.style.top);
 
@@ -1147,32 +1336,34 @@
         const distLeft = centerX;
         const distRight = canvasW - centerX;
 
-        const sTop = distTop / (currentH / 2);
-        const sBottom = distBottom / (currentH / 2);
-        const sLeft = distLeft / (currentW / 2);
-        const sRight = distRight / (currentW / 2);
+        const sTop = distTop / halfH;
+        const sBottom = distBottom / halfH;
+        const sLeft = distLeft / halfW;
+        const sRight = distRight / halfW;
 
         const finalScale = Math.min(sTop, sBottom, sLeft, sRight);
-        state.collisionEdges = {
-          top: Math.abs(finalScale - sTop) < 0.01,
-          bottom: Math.abs(finalScale - sBottom) < 0.01,
-          left: Math.abs(finalScale - sLeft) < 0.01,
-          right: Math.abs(finalScale - sRight) < 0.01,
-        };
+        state.currentScale = finalScale;
+        state.initialScale = finalScale; // SAVE initial for reset
+        state.currentTx = 0;
+        state.currentTy = 0;
+
+        // Identify Anchor
+        let anchor = "";
+        if (Math.abs(finalScale - sTop) < 0.01) anchor = "top";
+        else if (Math.abs(finalScale - sBottom) < 0.01) anchor = "bottom";
+        else if (Math.abs(finalScale - sLeft) < 0.01) anchor = "left";
+        else if (Math.abs(finalScale - sRight) < 0.01) anchor = "right";
+        state.anchorEdge = anchor;
+
         element.style.setProperty("--target-scale", finalScale);
+        element.style.setProperty("--tx", "0px");
+        element.style.setProperty("--ty", "0px");
         element.classList.add("zoomed");
 
-        if (finalScale < 3.5) {
-          expandBtn.style.display = "flex";
-          expandBtn.style.left = centerX + "px";
-          expandBtn.style.top = centerY + "px";
-          setTimeout(() => {
-            expandBtn.style.opacity = "1";
-          }, 50);
-        }
+        navScale.style.display = "block";
       }
 
-      // MOBILE SWIPE (Robust Drag-and-Snap)
+      // ... (Rest of Swipe/Slideshow logic unchanged) ...
       function addSwipeListener(element) {
         let touchStartX = 0;
         const handleTouchStart = (e) => {
@@ -1183,11 +1374,8 @@
           if (!state.zoomedElement) return;
           const touchCurrentX = e.touches[0].screenX;
           const deltaX = touchCurrentX - touchStartX;
-
-          // 1:1 Drag
           const scale = state.currentMobileScale || 1;
           const effectiveDelta = deltaX / scale;
-
           element.style.transform = `translate(-50%, -50%) scale(var(--target-scale)) translateX(${effectiveDelta}px)`;
         };
         const handleTouchEnd = (e) => {
@@ -1220,27 +1408,20 @@
       function changeSlide(direction) {
         if (!state.zoomedElement) return;
         if (state.isAnimating) return;
-
-        state.isAnimating = true; // Lock input
+        state.isAnimating = true;
         const gallery = GALLERIES[state.currentGalleryIndex];
-
         let attemptIndex = state.currentSlideIndex + direction;
-
         if (attemptIndex >= gallery.length) attemptIndex = 0;
         if (attemptIndex < 0) attemptIndex = gallery.length - 1;
-
         const maxAttempts = gallery.length;
         let attempts = 0;
-
         function tryLoad(index) {
           attempts++;
           if (attempts > maxAttempts) {
             state.isAnimating = false;
             return;
           }
-
           const url = gallery[index];
-          // Use loadMedia helper
           loadMedia(
             url,
             state.zoomedElement,
@@ -1252,10 +1433,7 @@
                 state.zoomedElement.querySelectorAll(".slide-image");
               const oldEl =
                 allSlides.length > 1 ? allSlides[allSlides.length - 2] : null;
-
-              // Force Reflow to ensure transition happens
               void newEl.offsetWidth;
-
               if (direction === 1) {
                 newEl.classList.add("animate-enter-right");
                 if (oldEl) oldEl.classList.add("animate-exit-left");
@@ -1263,13 +1441,9 @@
                 newEl.classList.add("animate-enter-left");
                 if (oldEl) oldEl.classList.add("animate-exit-right");
               }
-
               state.currentSlideIndex = index;
               state.zoomedElement.dataset.slideIndex = index;
-
-              // PRELOAD NEXT AFTER LOAD
               preloadNeighbors(state.currentGalleryIndex, index);
-
               setTimeout(() => {
                 if (oldEl) oldEl.remove();
                 newEl.classList.remove(
@@ -1287,7 +1461,6 @@
             }
           );
         }
-
         tryLoad(attemptIndex);
       }
 
@@ -1295,12 +1468,13 @@
         state.isZoomed = false;
         state.zoomedElement = null;
         resetInfo();
-        expandBtn.style.opacity = "0";
-        expandBtn.style.display = "none";
+        navScale.style.display = "none";
         document.body.classList.remove("zoomed-active");
         const zoomedEl = document.querySelector(".trail-image.zoomed");
         if (zoomedEl) {
           zoomedEl.classList.remove("zoomed");
+          zoomedEl.style.removeProperty("--tx");
+          zoomedEl.style.removeProperty("--ty");
           setTimeout(() => {
             if (zoomedEl) zoomedEl.style.removeProperty("--target-scale");
           }, 500);
