@@ -4,8 +4,8 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Visual Fix: Changed .trail-image background to BLACK (#000).
-    - This eliminates the grey border/gap seen when playing videos with the 3% margin.
+  - Removed AR Button ("View in your space") and AR Prompt (Hand animation) as requested.
+  - Removed associated CSS and HTML attributes for AR.
 -->
   <head>
     <meta charset="utf-8" />
@@ -106,6 +106,7 @@
         position: relative;
         width: 100vw;
         height: 100vh;
+        /* Dynamic viewport height for mobile browsers */
         height: 100dvh;
         overflow: hidden;
         background-color: #ffffff;
@@ -144,23 +145,6 @@
         outline: none;
       }
 
-      model-viewer > #ar-prompt {
-        position: absolute;
-        left: 50%;
-        bottom: 60px;
-        animation: elongate 20s infinite ease-in-out alternate;
-        display: none;
-        z-index: 50;
-      }
-
-      model-viewer[ar-status="session-started"] > #ar-prompt {
-        display: block;
-      }
-
-      model-viewer > #ar-prompt > img {
-        animation: circle 20s linear infinite;
-      }
-
       .progress-bar {
         display: block;
         width: 33%;
@@ -190,60 +174,6 @@
         border-radius: 25px;
         float: left;
         transition: width 0.3s;
-      }
-
-      #ar-button {
-        background-image: url(ar_icon.png);
-        background-repeat: no-repeat;
-        background-size: 20px 20px;
-        background-position: 12px 50%;
-        background-color: #fff;
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        white-space: nowrap;
-        bottom: 16px;
-        padding: 0px 16px 0px 40px;
-        font-family: "Programme", sans-serif;
-        font-size: 14px;
-        color: #4285f4;
-        height: 36px;
-        line-height: 36px;
-        border-radius: 18px;
-        border: 1px solid #dadce0;
-        z-index: 50;
-        cursor: none !important;
-      }
-
-      #ar-button:active {
-        background-color: #e8eaed;
-      }
-
-      #ar-button:focus {
-        outline: none;
-      }
-
-      #ar-button:focus-visible {
-        outline: 1px solid #4285f4;
-      }
-
-      @keyframes circle {
-        from {
-          transform: translateX(-50%) rotate(0deg) translateX(50px) rotate(0deg);
-        }
-        to {
-          transform: translateX(-50%) rotate(360deg) translateX(50px)
-            rotate(-360deg);
-        }
-      }
-
-      @keyframes elongate {
-        from {
-          transform: translateX(100px);
-        }
-        to {
-          transform: translateX(-100px);
-        }
       }
 
       /* --- NAVIGATION --- */
@@ -399,7 +329,7 @@
         box-shadow: none;
         z-index: 4000;
         user-select: none;
-        background-color: #000; /* CHANGED FROM #eee TO BLACK FOR VIDEO BG */
+        background-color: #000;
       }
 
       .trail-image.no-transition {
@@ -569,11 +499,9 @@
 
     <!-- 5. ABOUT PAGE WITH MODEL-VIEWER -->
     <div id="about-page">
-      <!-- model-viewer logic directly integrated -->
+      <!-- model-viewer logic directly integrated (AR button removed) -->
       <model-viewer
         src="scans/untitled1.glb"
-        ar
-        ar-modes="webxr scene-viewer quick-look"
         camera-controls
         orbit-sensitivity="1.5"
         interpolation-decay="100"
@@ -584,7 +512,7 @@
       >
         <div class="progress-bar hide" slot="progress-bar">
           <div class="update-bar"></div>
-      
+        </div>
       </model-viewer>
 
       <div class="about-center-text"></div>
@@ -664,7 +592,7 @@
       for (let i = 0; i < projectFolders.length; i++) {
         const folder = projectFolders[i];
         const arr = [`bilder/${folder}/${folder}cover.webp`];
-        for (let j = 1; j <= 30; j++) {
+        for (let j = 1; j <= 13; j++) {
           arr.push(`bilder/${folder}/${j}.webp`);
         }
         GALLERIES.push(arr);
@@ -1076,7 +1004,6 @@
         el.style.setProperty("--ty", state.currentTy + "px");
 
         // Button stays visible (infinite loop possible if space allows)
-        // navScale.style.display = "none"; // REMOVED to allow infinite
       });
 
       // --- MOUSE MOVEMENT ---
@@ -1202,6 +1129,7 @@
         container.style.width = width + "px";
         container.style.height = height + "px";
 
+        // Apply Visual Scale for Mobile (using transform)
         if (state.isMobile) {
           container.style.setProperty("--idle-scale", CONFIG.mobileScale);
         } else {
@@ -1233,7 +1161,9 @@
           }
         });
         container.addEventListener("mouseleave", () => {
-          if (!state.isZoomed) resetInfo();
+          if (!state.isZoomed) {
+            resetInfo();
+          }
         });
         canvas.appendChild(container);
       }
@@ -1375,13 +1305,17 @@
       function changeSlide(direction) {
         if (!state.zoomedElement) return;
         if (state.isAnimating) return;
+
         state.isAnimating = true;
         const gallery = GALLERIES[state.currentGalleryIndex];
         let attemptIndex = state.currentSlideIndex + direction;
+
         if (attemptIndex >= gallery.length) attemptIndex = 0;
         if (attemptIndex < 0) attemptIndex = gallery.length - 1;
+
         const maxAttempts = gallery.length;
         let attempts = 0;
+
         function tryLoad(index) {
           attempts++;
           if (attempts > maxAttempts) {
@@ -1400,7 +1334,10 @@
                 state.zoomedElement.querySelectorAll(".slide-image");
               const oldEl =
                 allSlides.length > 1 ? allSlides[allSlides.length - 2] : null;
+
+              // Force Reflow to ensure transition happens
               void newEl.offsetWidth;
+
               if (direction === 1) {
                 newEl.classList.add("animate-enter-right");
                 if (oldEl) oldEl.classList.add("animate-exit-left");
@@ -1408,9 +1345,13 @@
                 newEl.classList.add("animate-enter-left");
                 if (oldEl) oldEl.classList.add("animate-exit-right");
               }
+
               state.currentSlideIndex = index;
               state.zoomedElement.dataset.slideIndex = index;
+
+              // PRELOAD NEXT AFTER LOAD
               preloadNeighbors(state.currentGalleryIndex, index);
+
               setTimeout(() => {
                 if (oldEl) oldEl.remove();
                 newEl.classList.remove(
@@ -1428,6 +1369,7 @@
             }
           );
         }
+
         tryLoad(attemptIndex);
       }
 
