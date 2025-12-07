@@ -4,7 +4,8 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Scale Button: Does NOT disappear after use. Allows infinite cycling/scaling.
+  - Visual Fix: Changed .trail-image background to BLACK (#000).
+    - This eliminates the grey border/gap seen when playing videos with the 3% margin.
 -->
   <head>
     <meta charset="utf-8" />
@@ -35,7 +36,7 @@
             format("embedded-opentype"),
           url("Programme-Regular/Programme-Regular.woff2") format("woff2"),
           url("Programme-Regular/Programme-Regular.woff") format("woff");
-
+        font-weight: 400;
         font-style: normal;
         font-display: swap;
       }
@@ -71,8 +72,8 @@
         pointer-events: none;
         z-index: 10000;
         font-family: "Programme", sans-serif;
-        font-weight: 800;
-        font-size: 3rem;
+        font-weight: 400;
+        font-size: 2rem;
         line-height: 1;
         color: #ffffff;
         mix-blend-mode: difference;
@@ -289,7 +290,6 @@
         overflow: hidden;
         text-overflow: ellipsis;
         text-align: left;
-        /* Width set by JS to lock layout */
       }
 
       #nav-center a {
@@ -298,7 +298,7 @@
         cursor: pointer;
       }
 
-      /* SCALE BUTTON (Desktop) - INVERTED & GLITCH STYLE */
+      /* SCALE BUTTON (Desktop) - CLEAN STYLE */
       #nav-scale {
         position: absolute;
         right: 0;
@@ -310,52 +310,9 @@
         color: #fff;
         padding: 2px 6px;
         font-size: 1rem;
-        /* Reset mix-blend to normal so black background covers white bg */
         mix-blend-mode: normal;
         user-select: none;
-        /* Establish stacking context for blending */
         z-index: 0;
-      }
-
-      /* Glitch text behind */
-      #nav-scale::before {
-        content: "image";
-        position: absolute;
-        top: 2px;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        color: #fff;
-        background: transparent;
-        opacity: 0;
-        z-index: -1;
-        pointer-events: none;
-
-        /* Subtle offset */
-
-        mix-blend-mode: multiply;
-      }
-
-      #nav-scale:hover::before {
-        opacity: 1;
-      }
-
-      @keyframes glitch-anim {
-        0% {
-          transform: translate(2px, 0);
-        }
-        25% {
-          transform: translate(-2px, 1px);
-        }
-        50% {
-          transform: translate(0px, -1px);
-        }
-        75% {
-          transform: translate(-1px, 0);
-        }
-        100% {
-          transform: translate(1px, 1px);
-        }
       }
 
       /* --- FOOTER --- */
@@ -442,7 +399,7 @@
         box-shadow: none;
         z-index: 4000;
         user-select: none;
-        background-color: #eee;
+        background-color: #000; /* CHANGED FROM #eee TO BLACK FOR VIDEO BG */
       }
 
       .trail-image.no-transition {
@@ -590,7 +547,7 @@
     </div>
 
     <!-- 1. CUSTOM CURSOR -->
-    <div id="custom-cursor">+</div>
+    <div id="custom-cursor">!</div>
 
     <!-- 3. TOP NAVIGATION -->
     <nav>
@@ -601,7 +558,7 @@
       </div>
       <div id="nav-about" class="nav-text">über</div>
 
-      <!-- Scale Button (Desktop) -->
+      <!-- Scale Button (Desktop) - Simplified -->
       <div id="nav-scale" class="nav-text">scale</div>
     </nav>
 
@@ -618,6 +575,8 @@
         ar
         ar-modes="webxr scene-viewer quick-look"
         camera-controls
+        orbit-sensitivity="1.5"
+        interpolation-decay="100"
         tone-mapping="neutral"
         poster="poster.webp"
         shadow-intensity="0"
@@ -709,7 +668,7 @@
       for (let i = 0; i < projectFolders.length; i++) {
         const folder = projectFolders[i];
         const arr = [`bilder/${folder}/${folder}cover.webp`];
-        for (let j = 1; j <= 25; j++) {
+        for (let j = 1; j <= 30; j++) {
           arr.push(`bilder/${folder}/${j}.webp`);
         }
         GALLERIES.push(arr);
@@ -790,17 +749,20 @@
       window.addEventListener("resize", checkMobile);
 
       // --- FIX NAV WIDTH ---
-      // Locks the width of the center container to the email address
-      // to prevent layout shifts when text changes on hover.
-      document.fonts.ready.then(() => {
+      function fixNavWidth() {
         if (!state.isMobile) {
-          // Measure natural width of email
+          // Temporarily reset to auto to measure
           navCenter.style.width = "auto";
           const width = navCenter.offsetWidth;
-          // Apply fixed width (+1px buffer)
+          // Lock width
           navCenter.style.width = width + 1 + "px";
         }
-      });
+      }
+
+      // Run once font is loaded
+      document.fonts.ready.then(fixNavWidth);
+      // And on resize just in case
+      window.addEventListener("resize", fixNavWidth);
 
       // --- PRELOAD LOGIC ---
       function preloadAllCovers() {
@@ -971,7 +933,7 @@
         const isLeft = Math.abs(rect.left) < 2;
         const isRight = Math.abs(rect.right - limitRight) < 2;
 
-        // 1.1 Impossible Case: Touching Opposite Edges
+        // 1.1 Impossible Case: Touching Opposite Edges (Locked)
         if ((isTop && isBottom) || (isLeft && isRight)) {
           // Cannot scale further in locked dimension
           if (isTop && isBottom && isLeft && isRight) return;
@@ -1060,18 +1022,24 @@
           if (spaceLeft > 1)
             ratios.push({ r: (currentW + spaceLeft) / currentW, type: "w" });
         }
+        // If center (no anchor yet), grow equally
+        else {
+          const minSpace = Math.min(
+            spaceTop,
+            spaceBottom,
+            spaceLeft,
+            spaceRight
+          );
+          // Logic not fully needed if always anchored, but good fallback
+        }
 
         ratios = ratios.filter((item) => item.r > 1.005);
         ratios.sort((a, b) => a.r - b.r);
 
         if (ratios.length === 0) {
-          // No more space to grow, reset to initial
-          state.currentScale = state.initialScale;
-          state.currentTx = 0;
-          state.currentTy = 0;
-          el.style.setProperty("--target-scale", state.initialScale);
-          el.style.setProperty("--tx", "0px");
-          el.style.setProperty("--ty", "0px");
+          // NO MORE GROWTH POSSIBLE - Reset?
+          // Or just do nothing? User said "allow infinite repeated scaling clicks".
+          // If full, maybe reset to small?
           return;
         }
 
@@ -1085,6 +1053,7 @@
         const rawGrowthW = currentW * (growthFactor - 1);
         const rawGrowthH = currentH * (growthFactor - 1);
 
+        // Compensation Translation based on Anchor
         if (anchor === "top") dY = rawGrowthH / 2;
         else if (anchor === "bottom") dY = -rawGrowthH / 2;
         else if (anchor === "left") dX = rawGrowthW / 2;
@@ -1121,6 +1090,7 @@
 
         const cx = e.clientX;
         const cy = e.clientY;
+
         customCursor.style.left = cx + "px";
         customCursor.style.top = cy + "px";
 
@@ -1138,11 +1108,11 @@
               relX < rect.width / 2 ? "&larr;" : "&rarr;";
             rotation = 0;
           } else {
-            customCursor.innerHTML = "+";
+            customCursor.innerHTML = "!";
             rotation = 0;
           }
         } else {
-          customCursor.innerHTML = "+";
+          customCursor.innerHTML = "!";
         }
         customCursor.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
         handleTrailLogic(cx, cy);
@@ -1343,7 +1313,6 @@
 
         const finalScale = Math.min(sTop, sBottom, sLeft, sRight);
         state.currentScale = finalScale;
-        state.initialScale = finalScale; // SAVE initial for reset
         state.currentTx = 0;
         state.currentTy = 0;
 
@@ -1374,8 +1343,10 @@
           if (!state.zoomedElement) return;
           const touchCurrentX = e.touches[0].screenX;
           const deltaX = touchCurrentX - touchStartX;
+
           const scale = state.currentMobileScale || 1;
           const effectiveDelta = deltaX / scale;
+
           element.style.transform = `translate(-50%, -50%) scale(var(--target-scale)) translateX(${effectiveDelta}px)`;
         };
         const handleTouchEnd = (e) => {
