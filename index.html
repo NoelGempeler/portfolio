@@ -4,15 +4,15 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Removed AR Button ("View in your space") and AR Prompt (Hand animation) as requested.
-  - Removed associated CSS and HTML attributes for AR.
+  - GLB Path: Fixed to 'scans/untitled1.glb'.
+  - Mobile Über Text: Reduced bottom padding to 5px (+ safe area) to sit right above the search bar.
 -->
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Exact Edge Scaling</title>
 
-    <!-- CSP: Updated to allow model-viewer CDN and local blobs -->
+    <!-- CSP: Permissive settings -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' blob:; img-src * data: blob:; media-src * data: blob:; style-src * 'unsafe-inline'; object-src * data: blob:; font-src * data:;"
@@ -80,7 +80,6 @@
         transform: translate(-50%, -50%);
         transition: transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
         will-change: transform, top, left;
-        /* Ensure centered text for arrows */
         text-align: center;
         width: 3rem;
         height: 3rem;
@@ -96,7 +95,7 @@
         opacity: 0 !important;
       }
 
-      /* --- EXPAND BUTTON (Hidden/Replaced) --- */
+      /* --- EXPAND BUTTON --- */
       #expand-btn {
         display: none;
       }
@@ -106,7 +105,6 @@
         position: relative;
         width: 100vw;
         height: 100vh;
-        /* Dynamic viewport height for mobile browsers */
         height: 100dvh;
         overflow: hidden;
         background-color: #ffffff;
@@ -228,7 +226,7 @@
         cursor: pointer;
       }
 
-      /* SCALE BUTTON (Desktop) - CLEAN STYLE */
+      /* SCALE BUTTON (Desktop) */
       #nav-scale {
         position: absolute;
         right: 0;
@@ -245,6 +243,35 @@
         z-index: 0;
       }
 
+      #nav-scale .front {
+        position: relative;
+        z-index: 2;
+        display: block;
+        color: #ffffff;
+        mix-blend-mode: difference;
+      }
+
+      #nav-scale .back {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #000000;
+        opacity: 0;
+        transition: opacity 0.1s ease;
+        pointer-events: none;
+        will-change: opacity;
+      }
+
+      #nav-scale:hover .back {
+        opacity: 1;
+      }
+
       /* --- FOOTER --- */
       footer {
         position: fixed;
@@ -256,7 +283,7 @@
         color: #ffffff;
         mix-blend-mode: difference;
         font-size: 1rem;
-        line-height: 1.15;
+        line-height: 1.1;
       }
 
       #footer-text {
@@ -270,7 +297,7 @@
         left: 5px;
         right: 5px;
         font-size: 1rem;
-        line-height: 1.35;
+        line-height: 1.1;
         text-align: justify;
         color: #ffffff;
         mix-blend-mode: difference;
@@ -282,8 +309,10 @@
         .about-bottom-text {
           text-align: left;
           line-height: 1.3;
+
+          /* UPDATED: Minimal padding to sit right above search bar */
           bottom: 0;
-          padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+          padding-bottom: calc(5px + env(safe-area-inset-bottom));
         }
       }
 
@@ -323,6 +352,8 @@
         overflow: hidden;
         transform-origin: center center;
         transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%) scale(var(--idle-scale, 1));
+
         transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
           opacity 0.3s ease, left 0.5s cubic-bezier(0.23, 1, 0.32, 1),
           top 0.5s cubic-bezier(0.23, 1, 0.32, 1);
@@ -330,6 +361,8 @@
         z-index: 4000;
         user-select: none;
         background-color: #000;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
       }
 
       .trail-image.no-transition {
@@ -348,6 +381,7 @@
         transition: transform 0s;
       }
 
+      /* Video styling */
       video.slide-image {
         height: 94%;
         top: 3%;
@@ -445,11 +479,11 @@
         width: 100vw;
         height: 100vh;
         background: white;
-        z-index: 99999; /* Highest priority */
+        z-index: 99999;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px; /* Spacing between rectangles */
+        gap: 8px;
         pointer-events: auto;
         transition: opacity 0.5s ease;
       }
@@ -487,9 +521,11 @@
         <a href="mailto:giger@grafik.ch" target="_blank">giger@grafik.ch</a>
       </div>
       <div id="nav-about" class="nav-text">über</div>
-
-      <!-- Scale Button (Desktop) - Simplified -->
-      <div id="nav-scale" class="nav-text">scale</div>
+      <!-- Scale Button -->
+      <div id="nav-scale" class="nav-text">
+        <span class="front">scale</span>
+        <span class="back">image</span>
+      </div>
     </nav>
 
     <!-- 4. FOOTER -->
@@ -499,9 +535,11 @@
 
     <!-- 5. ABOUT PAGE WITH MODEL-VIEWER -->
     <div id="about-page">
-      <!-- model-viewer logic directly integrated (AR button removed) -->
+      <!-- FIXED: src to 'scans/untitled1.glb' -->
       <model-viewer
         src="scans/untitled1.glb"
+        ar
+        ar-modes="webxr scene-viewer quick-look"
         camera-controls
         orbit-sensitivity="1.5"
         interpolation-decay="100"
@@ -570,10 +608,10 @@
         maxImages: 8,
         navZoneHeight: 100,
         mobileScale: 0.75,
-        mobileMinDist: 60,
-        mobileBoxWidth: 120,
-        mobileBoxHeight: 80,
-        edgeGap: 0, // STRICT BOUNDARIES (Pixel Perfect)
+        mobileMinDist: 30, // Reduced drop distance
+        mobileBoxWidth: 100, // 100px on mobile
+        mobileBoxHeight: 66,
+        edgeGap: 0,
       };
 
       // --- ASSETS ---
@@ -675,24 +713,32 @@
       // --- FIX NAV WIDTH ---
       function fixNavWidth() {
         if (!state.isMobile) {
-          // Temporarily reset to auto to measure
           navCenter.style.width = "auto";
           const width = navCenter.offsetWidth;
-          // Lock width
           navCenter.style.width = width + 1 + "px";
         }
       }
-
-      // Run once font is loaded
       document.fonts.ready.then(fixNavWidth);
-      // And on resize just in case
       window.addEventListener("resize", fixNavWidth);
 
-      // --- PRELOAD LOGIC ---
+      // --- PRELOAD LOGIC (With Failsafe) ---
       function preloadAllCovers() {
         let loadedCount = 0;
         const total = GALLERIES.length;
         const dots = document.querySelectorAll(".loading-rect");
+        let finished = false;
+
+        function finishLoading() {
+          if (finished) return;
+          finished = true;
+          const screen = document.getElementById("loading-screen");
+          if (screen) {
+            screen.style.opacity = "0";
+            setTimeout(() => screen.remove(), 500);
+          }
+          state.isLoading = false;
+        }
+
         function updateLoader() {
           loadedCount++;
           const ratio = loadedCount / total;
@@ -700,17 +746,12 @@
           dots.forEach((dot, idx) => {
             if (idx < dotsToFill) dot.classList.add("filled");
           });
-          if (loadedCount >= total) {
-            setTimeout(() => {
-              const screen = document.getElementById("loading-screen");
-              if (screen) {
-                screen.style.opacity = "0";
-                setTimeout(() => screen.remove(), 500);
-              }
-              state.isLoading = false;
-            }, 300);
-          }
+          if (loadedCount >= total) finishLoading();
         }
+
+        // Failsafe: unlock after 3s anyway
+        setTimeout(finishLoading, 3000);
+
         GALLERIES.forEach((gallery) => {
           const src = gallery[0];
           const img = new Image();
@@ -847,28 +888,21 @@
         const el = state.zoomedElement;
         const rect = el.getBoundingClientRect();
         const footerRect = footerEl.getBoundingClientRect();
-        const limitBottom = footerRect.top; // Project Text Top
+        const limitBottom = footerRect.top;
         const limitRight = window.innerWidth;
 
-        // 1. DETECT ANCHOR (Current edges touching)
-        // Tolerance of 2px
         const isTop = Math.abs(rect.top) < 2;
         const isBottom = Math.abs(rect.bottom - limitBottom) < 2;
         const isLeft = Math.abs(rect.left) < 2;
         const isRight = Math.abs(rect.right - limitRight) < 2;
 
-        // 1.1 Impossible Case: Touching Opposite Edges (Locked)
         if ((isTop && isBottom) || (isLeft && isRight)) {
-          // Cannot scale further in locked dimension
           if (isTop && isBottom && isLeft && isRight) return;
           if (isTop && isBottom) return;
           if (isLeft && isRight) return;
         }
 
-        // 2. DETERMINE EFFECTIVE ANCHOR (Handling Corners)
         let anchor = state.anchorEdge;
-
-        // Detect Corners (Overrides single edge)
         if (isTop && isLeft) anchor = "top-left";
         else if (isTop && isRight) anchor = "top-right";
         else if (isBottom && isLeft) anchor = "bottom-left";
@@ -877,10 +911,8 @@
         else if (isBottom) anchor = "bottom";
         else if (isLeft) anchor = "left";
         else if (isRight) anchor = "right";
-
         state.anchorEdge = anchor;
 
-        // 3. CALCULATE GROWTH POTENTIAL
         let ratios = [];
         const currentW = rect.width;
         const currentH = rect.height;
@@ -945,25 +977,25 @@
             ratios.push({ r: (currentH + spaceTop) / currentH, type: "h" });
           if (spaceLeft > 1)
             ratios.push({ r: (currentW + spaceLeft) / currentW, type: "w" });
-        }
-        // If center (no anchor yet), grow equally
-        else {
+        } else {
           const minSpace = Math.min(
             spaceTop,
             spaceBottom,
             spaceLeft,
             spaceRight
           );
-          // Logic not fully needed if always anchored, but good fallback
         }
 
         ratios = ratios.filter((item) => item.r > 1.005);
         ratios.sort((a, b) => a.r - b.r);
 
         if (ratios.length === 0) {
-          // NO MORE GROWTH POSSIBLE - Reset?
-          // Or just do nothing? User said "allow infinite repeated scaling clicks".
-          // If full, maybe reset to small?
+          state.currentScale = state.initialScale;
+          state.currentTx = 0;
+          state.currentTy = 0;
+          el.style.setProperty("--target-scale", state.initialScale);
+          el.style.setProperty("--tx", "0px");
+          el.style.setProperty("--ty", "0px");
           return;
         }
 
@@ -977,7 +1009,6 @@
         const rawGrowthW = currentW * (growthFactor - 1);
         const rawGrowthH = currentH * (growthFactor - 1);
 
-        // Compensation Translation based on Anchor
         if (anchor === "top") dY = rawGrowthH / 2;
         else if (anchor === "bottom") dY = -rawGrowthH / 2;
         else if (anchor === "left") dX = rawGrowthW / 2;
@@ -1002,8 +1033,6 @@
         el.style.setProperty("--target-scale", nextScale);
         el.style.setProperty("--tx", state.currentTx + "px");
         el.style.setProperty("--ty", state.currentTy + "px");
-
-        // Button stays visible (infinite loop possible if space allows)
       });
 
       // --- MOUSE MOVEMENT ---
@@ -1305,17 +1334,13 @@
       function changeSlide(direction) {
         if (!state.zoomedElement) return;
         if (state.isAnimating) return;
-
         state.isAnimating = true;
         const gallery = GALLERIES[state.currentGalleryIndex];
         let attemptIndex = state.currentSlideIndex + direction;
-
         if (attemptIndex >= gallery.length) attemptIndex = 0;
         if (attemptIndex < 0) attemptIndex = gallery.length - 1;
-
         const maxAttempts = gallery.length;
         let attempts = 0;
-
         function tryLoad(index) {
           attempts++;
           if (attempts > maxAttempts) {
@@ -1334,10 +1359,7 @@
                 state.zoomedElement.querySelectorAll(".slide-image");
               const oldEl =
                 allSlides.length > 1 ? allSlides[allSlides.length - 2] : null;
-
-              // Force Reflow to ensure transition happens
               void newEl.offsetWidth;
-
               if (direction === 1) {
                 newEl.classList.add("animate-enter-right");
                 if (oldEl) oldEl.classList.add("animate-exit-left");
@@ -1345,13 +1367,9 @@
                 newEl.classList.add("animate-enter-left");
                 if (oldEl) oldEl.classList.add("animate-exit-right");
               }
-
               state.currentSlideIndex = index;
               state.zoomedElement.dataset.slideIndex = index;
-
-              // PRELOAD NEXT AFTER LOAD
               preloadNeighbors(state.currentGalleryIndex, index);
-
               setTimeout(() => {
                 if (oldEl) oldEl.remove();
                 newEl.classList.remove(
@@ -1369,7 +1387,6 @@
             }
           );
         }
-
         tryLoad(attemptIndex);
       }
 
