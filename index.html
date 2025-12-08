@@ -4,13 +4,14 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - GLB Path: Fixed to 'scans/untitled1.glb'.
-  - Mobile Über Text: Reduced bottom padding to 5px (+ safe area) to sit right above the search bar.
+  - Rotated Video Scaling: 
+    - Updated '.rotate-90' class to include 'scale(1.5)'.
+    - This ensures rotated videos fill the 3:2 container box better.
 -->
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Exact Edge Scaling</title>
+    <title>ggg</title>
 
     <!-- CSP: Permissive settings -->
     <meta
@@ -36,7 +37,7 @@
             format("embedded-opentype"),
           url("Programme-Regular/Programme-Regular.woff2") format("woff2"),
           url("Programme-Regular/Programme-Regular.woff") format("woff");
-        font-weight: 400;
+
         font-style: normal;
         font-display: swap;
       }
@@ -95,7 +96,7 @@
         opacity: 0 !important;
       }
 
-      /* --- EXPAND BUTTON --- */
+      /* --- EXPAND BUTTON (Hidden/Replaced) --- */
       #expand-btn {
         display: none;
       }
@@ -215,8 +216,7 @@
         position: static;
         pointer-events: auto;
         white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        overflow: visible;
         text-align: left;
       }
 
@@ -226,7 +226,7 @@
         cursor: pointer;
       }
 
-      /* SCALE BUTTON (Desktop) */
+      /* SCALE BUTTON (Desktop) - CLEAN STYLE */
       #nav-scale {
         position: absolute;
         right: 0;
@@ -241,6 +241,30 @@
         mix-blend-mode: normal;
         user-select: none;
         z-index: 0;
+      }
+
+      /* Glitch text behind */
+      #nav-scale::before {
+        content: "image";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        color: #fff;
+        background: transparent;
+        opacity: 0;
+        z-index: -1;
+        pointer-events: none;
+        transition: opacity 0.1s;
+        /* Subtle offset */
+        transform: translate(2px, 0px);
+        mix-blend-mode: exclusion;
+        will-change: opacity;
+      }
+
+      #nav-scale:hover::before {
+        opacity: 1;
       }
 
       #nav-scale .front {
@@ -283,7 +307,7 @@
         color: #ffffff;
         mix-blend-mode: difference;
         font-size: 1rem;
-        line-height: 1.1;
+        line-height: 1.15;
       }
 
       #footer-text {
@@ -297,7 +321,7 @@
         left: 5px;
         right: 5px;
         font-size: 1rem;
-        line-height: 1.1;
+        line-height: 1.35;
         text-align: justify;
         color: #ffffff;
         mix-blend-mode: difference;
@@ -309,8 +333,6 @@
         .about-bottom-text {
           text-align: left;
           line-height: 1.3;
-
-          /* UPDATED: Minimal padding to sit right above search bar */
           bottom: 0;
           padding-bottom: calc(5px + env(safe-area-inset-bottom));
         }
@@ -379,6 +401,7 @@
         pointer-events: none;
         -webkit-user-drag: none;
         transition: transform 0s;
+        /* No global rotation - handled by class .rotate-90 */
       }
 
       /* Video styling */
@@ -387,6 +410,11 @@
         top: 3%;
         object-fit: contain;
         background-color: black;
+      }
+
+      /* Special class for rotated videos: Rotate 90deg and scale to fill box */
+      .rotate-90 {
+        transform: rotate(90deg) scale(1.4) !important;
       }
 
       body:not(.zoomed-active) .trail-image:hover {
@@ -521,7 +549,8 @@
         <a href="mailto:giger@grafik.ch" target="_blank">giger@grafik.ch</a>
       </div>
       <div id="nav-about" class="nav-text">über</div>
-      <!-- Scale Button -->
+
+      <!-- Scale Button (Desktop) -->
       <div id="nav-scale" class="nav-text">
         <span class="front">scale</span>
         <span class="back">image</span>
@@ -535,7 +564,7 @@
 
     <!-- 5. ABOUT PAGE WITH MODEL-VIEWER -->
     <div id="about-page">
-      <!-- FIXED: src to 'scans/untitled1.glb' -->
+      <!-- model-viewer logic directly integrated -->
       <model-viewer
         src="scans/untitled1.glb"
         ar
@@ -586,9 +615,6 @@
         id="helper-text"
         class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
       >
-        <h1 class="text-[1rem] font-normal text-gray-900 mb-2 uppercase">
-          Interactive Trail
-        </h1>
         <p class="text-[1rem] font-normal text-gray-500">
           Move mouse to drop images. Click to expand & slide.
         </p>
@@ -608,9 +634,9 @@
         maxImages: 8,
         navZoneHeight: 100,
         mobileScale: 0.75,
-        mobileMinDist: 30, // Reduced drop distance
-        mobileBoxWidth: 100, // 100px on mobile
-        mobileBoxHeight: 66,
+        mobileMinDist: 60,
+        mobileBoxWidth: 120,
+        mobileBoxHeight: 80,
         edgeGap: 0,
       };
 
@@ -630,7 +656,7 @@
       for (let i = 0; i < projectFolders.length; i++) {
         const folder = projectFolders[i];
         const arr = [`bilder/${folder}/${folder}cover.webp`];
-        for (let j = 1; j <= 30; j++) {
+        for (let j = 1; j <= 13; j++) {
           arr.push(`bilder/${folder}/${j}.webp`);
         }
         GALLERIES.push(arr);
@@ -721,13 +747,13 @@
       document.fonts.ready.then(fixNavWidth);
       window.addEventListener("resize", fixNavWidth);
 
-      // --- PRELOAD LOGIC (With Failsafe) ---
+      // --- PRELOAD LOGIC ---
       function preloadAllCovers() {
         let loadedCount = 0;
         const total = GALLERIES.length;
         const dots = document.querySelectorAll(".loading-rect");
-        let finished = false;
 
+        let finished = false;
         function finishLoading() {
           if (finished) return;
           finished = true;
@@ -749,8 +775,7 @@
           if (loadedCount >= total) finishLoading();
         }
 
-        // Failsafe: unlock after 3s anyway
-        setTimeout(finishLoading, 3000);
+        setTimeout(finishLoading, 3000); // Failsafe
 
         GALLERIES.forEach((gallery) => {
           const src = gallery[0];
@@ -819,6 +844,7 @@
         new Image().src = gallery[prevIdx];
       };
 
+      // Updated loadMedia to check for -90.mp4 fallback
       function loadMedia(
         src,
         container,
@@ -833,22 +859,43 @@
           if (onSuccess) onSuccess(img);
         };
         img.onerror = () => {
-          const vidSrc = src.replace(".webp", ".mp4");
+          // 1. Try Standard Video
           const vid = document.createElement("video");
           vid.className = className;
           vid.muted = true;
           vid.loop = true;
           vid.autoplay = true;
           vid.playsInline = true;
+
           vid.onloadeddata = () => {
             container.appendChild(vid);
             vid.play().catch((e) => console.log("Auto-play prevented", e));
             if (onSuccess) onSuccess(vid);
           };
+
           vid.onerror = () => {
-            if (onError) onError();
+            // 2. Try Rotated Video (-90.mp4)
+            const vidRot = document.createElement("video");
+            vidRot.className = className + " rotate-90"; // Add rotation class
+            vidRot.muted = true;
+            vidRot.loop = true;
+            vidRot.autoplay = true;
+            vidRot.playsInline = true;
+
+            vidRot.onloadeddata = () => {
+              container.appendChild(vidRot);
+              vidRot.play().catch((e) => console.log("Auto-play prevented", e));
+              if (onSuccess) onSuccess(vidRot);
+            };
+
+            vidRot.onerror = () => {
+              if (onError) onError();
+            };
+            // Try fetching filename-90.mp4
+            vidRot.src = src.replace(".webp", "-90.mp4");
           };
-          vid.src = vidSrc;
+
+          vid.src = src.replace(".webp", ".mp4");
         };
         img.src = src;
       }
@@ -888,7 +935,7 @@
         const el = state.zoomedElement;
         const rect = el.getBoundingClientRect();
         const footerRect = footerEl.getBoundingClientRect();
-        const limitBottom = footerRect.top;
+        const limitBottom = footerRect.top; // Project Text Top
         const limitRight = window.innerWidth;
 
         const isTop = Math.abs(rect.top) < 2;
@@ -911,6 +958,7 @@
         else if (isBottom) anchor = "bottom";
         else if (isLeft) anchor = "left";
         else if (isRight) anchor = "right";
+
         state.anchorEdge = anchor;
 
         let ratios = [];
@@ -1158,7 +1206,6 @@
         container.style.width = width + "px";
         container.style.height = height + "px";
 
-        // Apply Visual Scale for Mobile (using transform)
         if (state.isMobile) {
           container.style.setProperty("--idle-scale", CONFIG.mobileScale);
         } else {
