@@ -4,16 +4,14 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Rotated Video Scaling: 
-    - Updated '.rotate-90' class to include 'scale(1.5)'.
-    - This ensures rotated videos fill the 3:2 container box better.
--->
+  - Reduced vertical gap between Bio and Skills section (margin-bottom: 0.25rem).
+  -->
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ggg</title>
 
-    <!-- CSP: Permissive settings -->
+    <!-- CSP: Updated to allow model-viewer CDN and local blobs -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' blob:; img-src * data: blob:; media-src * data: blob:; style-src * 'unsafe-inline'; object-src * data: blob:; font-src * data:;"
@@ -37,7 +35,7 @@
             format("embedded-opentype"),
           url("Programme-Regular/Programme-Regular.woff2") format("woff2"),
           url("Programme-Regular/Programme-Regular.woff") format("woff");
-
+        font-weight: 400;
         font-style: normal;
         font-display: swap;
       }
@@ -144,6 +142,23 @@
         outline: none;
       }
 
+      model-viewer > #ar-prompt {
+        position: absolute;
+        left: 50%;
+        bottom: 60px;
+        animation: elongate 20s infinite ease-in-out alternate;
+        display: none;
+        z-index: 50;
+      }
+
+      model-viewer[ar-status="session-started"] > #ar-prompt {
+        display: block;
+      }
+
+      model-viewer > #ar-prompt > img {
+        animation: circle 20s linear infinite;
+      }
+
       .progress-bar {
         display: block;
         width: 33%;
@@ -173,6 +188,60 @@
         border-radius: 25px;
         float: left;
         transition: width 0.3s;
+      }
+
+      #ar-button {
+        background-image: url(ar_icon.png);
+        background-repeat: no-repeat;
+        background-size: 20px 20px;
+        background-position: 12px 50%;
+        background-color: #fff;
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        white-space: nowrap;
+        bottom: 16px;
+        padding: 0px 16px 0px 40px;
+        font-family: "Programme", sans-serif;
+        font-size: 14px;
+        color: #4285f4;
+        height: 36px;
+        line-height: 36px;
+        border-radius: 18px;
+        border: 1px solid #dadce0;
+        z-index: 50;
+        cursor: none !important;
+      }
+
+      #ar-button:active {
+        background-color: #e8eaed;
+      }
+
+      #ar-button:focus {
+        outline: none;
+      }
+
+      #ar-button:focus-visible {
+        outline: 1px solid #4285f4;
+      }
+
+      @keyframes circle {
+        from {
+          transform: translateX(-50%) rotate(0deg) translateX(50px) rotate(0deg);
+        }
+        to {
+          transform: translateX(-50%) rotate(360deg) translateX(50px)
+            rotate(-360deg);
+        }
+      }
+
+      @keyframes elongate {
+        from {
+          transform: translateX(100px);
+        }
+        to {
+          transform: translateX(-100px);
+        }
       }
 
       /* --- NAVIGATION --- */
@@ -321,20 +390,55 @@
         left: 5px;
         right: 5px;
         font-size: 1rem;
-        line-height: 1.35;
-        text-align: justify;
+        line-height: 1.1;
+
+        display: block; /* Flow layout */
+
         color: #ffffff;
         mix-blend-mode: difference;
         z-index: 40;
         pointer-events: none;
       }
 
+      /* BIO: Justified */
+      .about-bio {
+        text-align: justify;
+        display: block;
+        /* UPDATED: Reduced spacing */
+        margin-bottom: 0.25rem;
+      }
+
+      /* SKILLS: Right Aligned */
+      .about-skills-list {
+        display: block;
+        text-align: right;
+      }
+
+      .skill-item {
+        display: inline-block;
+        margin-left: 6rem; /* 6rem gap between skills */
+      }
+
       @media (max-width: 800px) {
         .about-bottom-text {
-          text-align: left;
-          line-height: 1.3;
           bottom: 0;
           padding-bottom: calc(5px + env(safe-area-inset-bottom));
+        }
+
+        /* Mobile: Left Align */
+        .about-bio {
+          text-align: left;
+          line-height: 1.3;
+          /* UPDATED: Reduced spacing for mobile too */
+          margin-bottom: 0.25rem;
+        }
+        .about-skills-list {
+          text-align: left;
+          line-height: 1.3;
+        }
+        .skill-item {
+          margin-left: 0;
+          margin-right: 2rem; /* Reasonable gap for mobile width */
         }
       }
 
@@ -374,8 +478,6 @@
         overflow: hidden;
         transform-origin: center center;
         transform: translate(-50%, -50%);
-        transform: translate(-50%, -50%) scale(var(--idle-scale, 1));
-
         transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
           opacity 0.3s ease, left 0.5s cubic-bezier(0.23, 1, 0.32, 1),
           top 0.5s cubic-bezier(0.23, 1, 0.32, 1);
@@ -412,9 +514,9 @@
         background-color: black;
       }
 
-      /* Special class for rotated videos: Rotate 90deg and scale to fill box */
+      /* Special class for rotated videos */
       .rotate-90 {
-        transform: rotate(90deg) scale(1.4) !important;
+        transform: rotate(90deg) scale(1.5) !important;
       }
 
       body:not(.zoomed-active) .trail-image:hover {
@@ -550,7 +652,7 @@
       </div>
       <div id="nav-about" class="nav-text">über</div>
 
-      <!-- Scale Button (Desktop) -->
+      <!-- Scale Button -->
       <div id="nav-scale" class="nav-text">
         <span class="front">scale</span>
         <span class="back">image</span>
@@ -584,28 +686,40 @@
 
       <div class="about-center-text"></div>
       <div class="about-bottom-text">
-        I’m a designer who loves exploring the experimental side of visual
-        communication, always searching for new ways to break, stretch, and
-        rethink the boundaries of what design can be. My practice is shaped by
-        curiosity—both visually and technically. I’m drawn to unusual
-        aesthetics, generative ideas, and graphic systems that challenge
-        conventional expectations. Whether it’s through layouts that subvert
-        traditional hierarchy, typography that behaves more like a living
-        organism, or mixing analog and digital processes, I enjoy pushing my
-        work into territories that feel a little unfamiliar and a little
-        unpredictable. Activistic graphic design is also an important part of my
-        interests. I see design not only as a craft, but as a tool for dialogue
-        and reflection. I’m fascinated by how visual language can amplify
-        underrepresented voices, provoke thought, or make people aware of the
-        structures that surround them. I like to observe the world with a
-        critical eye and let those impressions influence the way I create—subtly
-        or boldly, depending on the project. On the technical side, I’m
-        increasingly curious about open-source alternatives and new creative
-        workflows. I don’t use them heavily yet, but I’m motivated to learn more
-        about how open systems, community-built tools, and unconventional
-        software can expand the way I design. The idea that creative tools can
-        be transparent, adaptable, and shared freely is something that inspires
-        me and fits well with my experimental approach.
+        <div class="about-bio">
+          I’m a designer who loves exploring the experimental side of visual
+          communication, always searching for new ways to break, stretch, and
+          rethink the boundaries of what design can be. My practice is shaped by
+          curiosity—both visually and technically. I’m drawn to unusual
+          aesthetics, generative ideas, and graphic systems that challenge
+          conventional expectations. Whether it’s through layouts that subvert
+          traditional hierarchy, typography that behaves more like a living
+          organism, or mixing analog and digital processes, I enjoy pushing my
+          work into territories that feel a little unfamiliar and a little
+          unpredictable. Activistic graphic design is also an important part of
+          my interests. I see design not only as a craft, but as a tool for
+          dialogue and reflection. I’m fascinated by how visual language can
+          amplify underrepresented voices, provoke thought, or make people aware
+          of the structures that surround them. I like to observe the world with
+          a critical eye and let those impressions influence the way I
+          create—subtly or boldly, depending on the project. On the technical
+          side, I’m increasingly curious about open-source alternatives and new
+          creative workflows. I don’t use them heavily yet, but I’m motivated to
+          learn more about how open systems, community-built tools, and
+          unconventional software can expand the way I design. The idea that
+          creative tools can be transparent, adaptable, and shared freely is
+          something that inspires me and fits well with my experimental
+          approach.
+        </div>
+        <div class="about-skills-list">
+          <span class="skill-item">inDesign</span>
+          <span class="skill-item">illustrator</span>
+          <span class="skill-item">photoshop</span>
+          <span class="skill-item">coding</span>
+          <span class="skill-item">touchDesigner</span>
+          <span class="skill-item">cavalry</span>
+          <span class="skill-item">photography</span>
+        </div>
       </div>
     </div>
 
@@ -656,12 +770,11 @@
       for (let i = 0; i < projectFolders.length; i++) {
         const folder = projectFolders[i];
         const arr = [`bilder/${folder}/${folder}cover.webp`];
-        for (let j = 1; j <= 30; j++) {
+        for (let j = 1; j <= 13; j++) {
           arr.push(`bilder/${folder}/${j}.webp`);
         }
         GALLERIES.push(arr);
       }
-
       const PROJECT_NAMES = [
         "BITWUSST?",
         "ARCHIVE",
@@ -704,7 +817,6 @@
         isMobile: false,
         isLoading: true,
         currentMobileScale: 1,
-        // SCALING STATE
         anchorEdge: null,
         currentScale: 1,
         currentTx: 0,
@@ -775,7 +887,7 @@
           if (loadedCount >= total) finishLoading();
         }
 
-        setTimeout(finishLoading, 3000); // Failsafe
+        setTimeout(finishLoading, 3000);
 
         GALLERIES.forEach((gallery) => {
           const src = gallery[0];
@@ -844,7 +956,6 @@
         new Image().src = gallery[prevIdx];
       };
 
-      // Updated loadMedia to check for -90.mp4 fallback
       function loadMedia(
         src,
         container,
@@ -859,7 +970,7 @@
           if (onSuccess) onSuccess(img);
         };
         img.onerror = () => {
-          // 1. Try Standard Video
+          const vidSrc = src.replace(".webp", ".mp4");
           const vid = document.createElement("video");
           vid.className = className;
           vid.muted = true;
@@ -874,9 +985,8 @@
           };
 
           vid.onerror = () => {
-            // 2. Try Rotated Video (-90.mp4)
             const vidRot = document.createElement("video");
-            vidRot.className = className + " rotate-90"; // Add rotation class
+            vidRot.className = className + " rotate-90";
             vidRot.muted = true;
             vidRot.loop = true;
             vidRot.autoplay = true;
@@ -891,7 +1001,6 @@
             vidRot.onerror = () => {
               if (onError) onError();
             };
-            // Try fetching filename-90.mp4
             vidRot.src = src.replace(".webp", "-90.mp4");
           };
 
@@ -901,17 +1010,6 @@
       }
 
       // --- NAVIGATION EVENTS ---
-      navHome.addEventListener("click", () => {
-        state.aboutActive = false;
-        aboutPage.style.opacity = "0";
-        setTimeout(() => {
-          aboutPage.classList.remove("active");
-          canvas.classList.remove("hidden-canvas");
-        }, 400);
-        if (state.isZoomed) zoomOut();
-        else resetTrail();
-      });
-
       navAbout.addEventListener("click", () => {
         resetInfo();
         if (state.isZoomed) {
@@ -928,6 +1026,16 @@
         }, 400);
       });
 
+      navHome.addEventListener("click", () => {
+        state.aboutActive = false;
+        aboutPage.style.opacity = "0";
+        setTimeout(() => {
+          aboutPage.classList.remove("active");
+          canvas.classList.remove("hidden-canvas");
+          resetTrail();
+        }, 400);
+      });
+
       // --- INFINITE SCALE LOGIC ---
       navScale.addEventListener("click", () => {
         if (!state.zoomedElement || state.isMobile) return;
@@ -935,7 +1043,7 @@
         const el = state.zoomedElement;
         const rect = el.getBoundingClientRect();
         const footerRect = footerEl.getBoundingClientRect();
-        const limitBottom = footerRect.top; // Project Text Top
+        const limitBottom = footerRect.top;
         const limitRight = window.innerWidth;
 
         const isTop = Math.abs(rect.top) < 2;
@@ -958,7 +1066,6 @@
         else if (isBottom) anchor = "bottom";
         else if (isLeft) anchor = "left";
         else if (isRight) anchor = "right";
-
         state.anchorEdge = anchor;
 
         let ratios = [];
@@ -1206,6 +1313,7 @@
         container.style.width = width + "px";
         container.style.height = height + "px";
 
+        // Apply Visual Scale for Mobile (using transform)
         if (state.isMobile) {
           container.style.setProperty("--idle-scale", CONFIG.mobileScale);
         } else {
