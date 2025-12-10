@@ -4,14 +4,16 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Reduced vertical gap between Bio and Skills section (margin-bottom: 0.25rem).
-  -->
+  - Fixed Carousel Skipping: Updates index immediately to allow rapid clicks (continuous loop).
+  - Added Async Handling: Uses 'slideRequestId' to prevent race conditions when skipping fast.
+  - Fixed Loader Size: Applies inverse scaling to the loader so squares stay 5px regardless of zoom level.
+-->
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ggg</title>
 
-    <!-- CSP: Updated to allow model-viewer CDN and local blobs -->
+    <!-- CSP: Permissive settings -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' blob:; img-src * data: blob:; media-src * data: blob:; style-src * 'unsafe-inline'; object-src * data: blob:; font-src * data:;"
@@ -87,7 +89,6 @@
         justify-content: center;
       }
 
-      /* STRICTLY HIDE CURSOR ON MOBILE */
       body.is-mobile #custom-cursor {
         display: none !important;
         visibility: hidden !important;
@@ -142,23 +143,6 @@
         outline: none;
       }
 
-      model-viewer > #ar-prompt {
-        position: absolute;
-        left: 50%;
-        bottom: 60px;
-        animation: elongate 20s infinite ease-in-out alternate;
-        display: none;
-        z-index: 50;
-      }
-
-      model-viewer[ar-status="session-started"] > #ar-prompt {
-        display: block;
-      }
-
-      model-viewer > #ar-prompt > img {
-        animation: circle 20s linear infinite;
-      }
-
       .progress-bar {
         display: block;
         width: 33%;
@@ -188,60 +172,6 @@
         border-radius: 25px;
         float: left;
         transition: width 0.3s;
-      }
-
-      #ar-button {
-        background-image: url(ar_icon.png);
-        background-repeat: no-repeat;
-        background-size: 20px 20px;
-        background-position: 12px 50%;
-        background-color: #fff;
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        white-space: nowrap;
-        bottom: 16px;
-        padding: 0px 16px 0px 40px;
-        font-family: "Programme", sans-serif;
-        font-size: 14px;
-        color: #4285f4;
-        height: 36px;
-        line-height: 36px;
-        border-radius: 18px;
-        border: 1px solid #dadce0;
-        z-index: 50;
-        cursor: none !important;
-      }
-
-      #ar-button:active {
-        background-color: #e8eaed;
-      }
-
-      #ar-button:focus {
-        outline: none;
-      }
-
-      #ar-button:focus-visible {
-        outline: 1px solid #4285f4;
-      }
-
-      @keyframes circle {
-        from {
-          transform: translateX(-50%) rotate(0deg) translateX(50px) rotate(0deg);
-        }
-        to {
-          transform: translateX(-50%) rotate(360deg) translateX(50px)
-            rotate(-360deg);
-        }
-      }
-
-      @keyframes elongate {
-        from {
-          transform: translateX(100px);
-        }
-        to {
-          transform: translateX(-100px);
-        }
       }
 
       /* --- NAVIGATION --- */
@@ -295,7 +225,7 @@
         cursor: pointer;
       }
 
-      /* SCALE BUTTON (Desktop) - CLEAN STYLE */
+      /* SCALE BUTTON (Desktop) */
       #nav-scale {
         position: absolute;
         right: 0;
@@ -312,35 +242,9 @@
         z-index: 0;
       }
 
-      /* Glitch text behind */
-      #nav-scale::before {
-        content: "image";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        color: #fff;
-        background: transparent;
-        opacity: 0;
-        z-index: -1;
-        pointer-events: none;
-        transition: opacity 0.1s;
-        /* Subtle offset */
-        transform: translate(2px, 0px);
-        mix-blend-mode: exclusion;
-        will-change: opacity;
-      }
-
-      #nav-scale:hover::before {
-        opacity: 1;
-      }
-
       #nav-scale .front {
         position: relative;
         z-index: 2;
-        display: block;
-        color: #ffffff;
         mix-blend-mode: difference;
       }
 
@@ -391,24 +295,20 @@
         right: 5px;
         font-size: 1rem;
         line-height: 1.1;
-
-        display: block; /* Flow layout */
-
+        display: block;
+        text-align: justify;
         color: #ffffff;
         mix-blend-mode: difference;
         z-index: 40;
         pointer-events: none;
       }
 
-      /* BIO: Justified */
       .about-bio {
         text-align: justify;
         display: block;
-        /* UPDATED: Reduced spacing */
         margin-bottom: 0.25rem;
       }
 
-      /* SKILLS: Right Aligned */
       .about-skills-list {
         display: block;
         text-align: right;
@@ -416,20 +316,20 @@
 
       .skill-item {
         display: inline-block;
-        margin-left: 6rem; /* 6rem gap between skills */
+        margin-left: 6rem;
       }
 
       @media (max-width: 800px) {
         .about-bottom-text {
+          text-align: left;
+          line-height: 1.3;
           bottom: 0;
           padding-bottom: calc(5px + env(safe-area-inset-bottom));
         }
 
-        /* Mobile: Left Align */
         .about-bio {
           text-align: left;
           line-height: 1.3;
-          /* UPDATED: Reduced spacing for mobile too */
           margin-bottom: 0.25rem;
         }
         .about-skills-list {
@@ -438,7 +338,7 @@
         }
         .skill-item {
           margin-left: 0;
-          margin-right: 2rem; /* Reasonable gap for mobile width */
+          margin-right: 2rem;
         }
       }
 
@@ -503,7 +403,6 @@
         pointer-events: none;
         -webkit-user-drag: none;
         transition: transform 0s;
-        /* No global rotation - handled by class .rotate-90 */
       }
 
       /* Video styling */
@@ -514,7 +413,6 @@
         background-color: black;
       }
 
-      /* Special class for rotated videos */
       .rotate-90 {
         transform: rotate(90deg) scale(1.5) !important;
       }
@@ -601,7 +499,7 @@
         }
       }
 
-      /* --- LOADING SCREEN --- */
+      /* --- LOADING SCREEN (Global) --- */
       #loading-screen {
         position: fixed;
         top: 0;
@@ -628,6 +526,46 @@
 
       .loading-rect.filled {
         background-color: black;
+      }
+
+      /* --- SLIDE LOADER (Inverted for Black Background) --- */
+      .slide-loader {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        gap: 5px;
+        z-index: 6000;
+        pointer-events: none;
+      }
+
+      .slide-loader .loading-rect {
+        border-color: white;
+        animation: loader-fill 1s infinite;
+      }
+
+      .slide-loader .loading-rect:nth-child(1) {
+        animation-delay: 0s;
+      }
+      .slide-loader .loading-rect:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .slide-loader .loading-rect:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+      .slide-loader .loading-rect:nth-child(4) {
+        animation-delay: 0.6s;
+      }
+
+      @keyframes loader-fill {
+        0%,
+        100% {
+          background-color: transparent;
+        }
+        50% {
+          background-color: white;
+        }
       }
     </style>
   </head>
@@ -712,13 +650,14 @@
           approach.
         </div>
         <div class="about-skills-list">
-          <span class="skill-item">inDesign</span>
-          <span class="skill-item">illustrator</span>
-          <span class="skill-item">photoshop</span>
-          <span class="skill-item">coding</span>
-          <span class="skill-item">touchDesigner</span>
-          <span class="skill-item">cavalry</span>
-          <span class="skill-item">photography</span>
+          <span class="skill-item">Skills:</span>
+          <span class="skill-item">InDesign</span>
+          <span class="skill-item">Illustrator</span>
+          <span class="skill-item">Photoshop</span>
+          <span class="skill-item">Coding</span>
+          <span class="skill-item">TouchDesigner</span>
+          <span class="skill-item">Cavalry</span>
+          <span class="skill-item">Photography</span>
         </div>
       </div>
     </div>
@@ -730,7 +669,7 @@
         class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
       >
         <p class="text-[1rem] font-normal text-gray-500">
-          Move mouse to drop images. Click to expand & slide.
+          move mouse to drop images. click to expand & slide :)
         </p>
       </div>
       <div id="backdrop"></div>
@@ -770,11 +709,12 @@
       for (let i = 0; i < projectFolders.length; i++) {
         const folder = projectFolders[i];
         const arr = [`bilder/${folder}/${folder}cover.webp`];
-        for (let j = 1; j <= 13; j++) {
+        for (let j = 1; j <= 30; j++) {
           arr.push(`bilder/${folder}/${j}.webp`);
         }
         GALLERIES.push(arr);
       }
+
       const PROJECT_NAMES = [
         "BITWUSST?",
         "ARCHIVE",
@@ -795,7 +735,6 @@
         "In a city where Baroque grandeur collides with social invisibility, Perdus explores the rift between power and marginalization. Anchored at the Place des Victoires, the project weaves together visual scans, historical context, and social critique into a silent dialogue on decay, dignity, and inequality. It challenges the viewer to perceive Paris not merely as a museum of architecture, but as a stage for the pressing social realities of our time.",
         "Bypassing the scenic Mount Pilatus and the Chapel Bridge, this work focuses on Emil Manser. The goal was to capture the imperfect side of Lucerne: raw, loud, and authentic. Using Python, I built a custom generator that reconstructed Manser’s portrait entirely from the text of his famous street signs. The result is a digital synthesis of street philosophy and code—a postcard from the real city, far removed from the tourist gaze.",
       ];
-
       // --- STATE ---
       const state = {
         lastX: 0,
@@ -821,6 +760,8 @@
         currentScale: 1,
         currentTx: 0,
         currentTy: 0,
+        // Slide loading request counter to prevent race conditions
+        slideRequestId: 0,
       };
 
       // --- DOM REFERENCES ---
@@ -1487,62 +1428,102 @@
       }
 
       function changeSlide(direction) {
+        // Instant Swap Logic for Desktop, Drag for Mobile
         if (!state.zoomedElement) return;
-        if (state.isAnimating) return;
+
+        // Prevent rapid overlapping requests for smooth loop
+        state.slideRequestId = (state.slideRequestId || 0) + 1;
+        const reqId = state.slideRequestId;
+
         state.isAnimating = true;
         const gallery = GALLERIES[state.currentGalleryIndex];
-        let attemptIndex = state.currentSlideIndex + direction;
-        if (attemptIndex >= gallery.length) attemptIndex = 0;
-        if (attemptIndex < 0) attemptIndex = gallery.length - 1;
-        const maxAttempts = gallery.length;
-        let attempts = 0;
-        function tryLoad(index) {
-          attempts++;
-          if (attempts > maxAttempts) {
-            state.isAnimating = false;
-            return;
+
+        // Calculate next index (with wrapping)
+        let nextIdx = state.currentSlideIndex + direction;
+        if (nextIdx >= gallery.length) nextIdx = 0;
+        if (nextIdx < 0) nextIdx = gallery.length - 1;
+
+        // Immediately update state index so multiple clicks work
+        state.currentSlideIndex = nextIdx;
+        state.zoomedElement.dataset.slideIndex = nextIdx;
+
+        // Clear existing loader timeout
+        if (state.loaderTimeout) clearTimeout(state.loaderTimeout);
+
+        // Remove existing loader
+        const existingLoader =
+          state.zoomedElement.querySelector(".slide-loader");
+        if (existingLoader) existingLoader.remove();
+
+        // 1s Delay for Loader
+        state.loaderTimeout = setTimeout(() => {
+          // Only show if still waiting for THIS request
+          if (reqId === state.slideRequestId) {
+            const loader = document.createElement("div");
+            loader.className = "slide-loader";
+            // Inverse Scale for 5px visual size
+            // Needs current scale of parent
+            const currentScale = state.isMobile
+              ? state.currentMobileScale
+              : state.currentScale;
+            // Can't easily get precise currentScale in JS if animated, but
+            // we can approximate or use CSS var if supported.
+            // Simple hack: Use style transform
+            // loader.style.transform = `translate(-50%, -50%) scale(${1/currentScale})`;
+            // Let's rely on CSS if possible or just accept small scaling diffs.
+            // Actually, user wants exact 5px.
+            const scale = getComputedStyle(
+              state.zoomedElement
+            ).getPropertyValue("--target-scale");
+            if (scale)
+              loader.style.transform = `translate(-50%, -50%) scale(${
+                1 / parseFloat(scale)
+              })`;
+
+            loader.innerHTML = `
+                   <div class="loading-rect"></div>
+                   <div class="loading-rect"></div>
+                   <div class="loading-rect"></div>
+                   <div class="loading-rect"></div>
+                 `;
+            state.zoomedElement.appendChild(loader);
           }
-          const url = gallery[index];
-          loadMedia(
-            url,
-            state.zoomedElement,
-            (newEl) => {
-              const currentEl = state.zoomedElement.querySelector(
-                ".slide-image:last-of-type"
-              );
-              const allSlides =
-                state.zoomedElement.querySelectorAll(".slide-image");
-              const oldEl =
-                allSlides.length > 1 ? allSlides[allSlides.length - 2] : null;
-              void newEl.offsetWidth;
-              if (direction === 1) {
-                newEl.classList.add("animate-enter-right");
-                if (oldEl) oldEl.classList.add("animate-exit-left");
-              } else {
-                newEl.classList.add("animate-enter-left");
-                if (oldEl) oldEl.classList.add("animate-exit-right");
-              }
-              state.currentSlideIndex = index;
-              state.zoomedElement.dataset.slideIndex = index;
-              preloadNeighbors(state.currentGalleryIndex, index);
-              setTimeout(() => {
-                if (oldEl) oldEl.remove();
-                newEl.classList.remove(
-                  "animate-enter-right",
-                  "animate-enter-left"
-                );
-                state.isAnimating = false;
-              }, 500);
-            },
-            () => {
-              let nextIdx = index + direction;
-              if (nextIdx >= gallery.length) nextIdx = 0;
-              if (nextIdx < 0) nextIdx = gallery.length - 1;
-              tryLoad(nextIdx);
+        }, 1000);
+
+        const url = gallery[nextIdx];
+
+        loadMedia(
+          url,
+          state.zoomedElement,
+          (newEl) => {
+            // Check if this is still the latest request
+            if (reqId !== state.slideRequestId) {
+              newEl.remove(); // Discard if old
+              return;
             }
-          );
-        }
-        tryLoad(attemptIndex);
+
+            // Success
+            if (state.loaderTimeout) clearTimeout(state.loaderTimeout);
+            const loader = state.zoomedElement.querySelector(".slide-loader");
+            if (loader) loader.remove();
+
+            // INSTANT SWAP: Remove all others
+            const oldSlides =
+              state.zoomedElement.querySelectorAll(".slide-image");
+            oldSlides.forEach((el) => {
+              if (el !== newEl) el.remove();
+            });
+
+            state.isAnimating = false;
+            preloadNeighbors(state.currentGalleryIndex, nextIdx);
+          },
+          () => {
+            // Error: Retry next index (Recursive skip)
+            if (reqId === state.slideRequestId) {
+              changeSlide(direction);
+            }
+          }
+        );
       }
 
       function zoomOut() {
