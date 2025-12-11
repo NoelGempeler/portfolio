@@ -4,9 +4,7 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Fixed Carousel Skipping: Updates index immediately to allow rapid clicks (continuous loop).
-  - Added Async Handling: Uses 'slideRequestId' to prevent race conditions when skipping fast.
-  - Fixed Loader Size: Applies inverse scaling to the loader so squares stay 5px regardless of zoom level.
+  - Carousel Loader Delay: Changed from 1000ms (1s) to 300ms (0.3s) as requested.
 -->
   <head>
     <meta charset="utf-8" />
@@ -89,6 +87,7 @@
         justify-content: center;
       }
 
+      /* STRICTLY HIDE CURSOR ON MOBILE */
       body.is-mobile #custom-cursor {
         display: none !important;
         visibility: hidden !important;
@@ -143,6 +142,23 @@
         outline: none;
       }
 
+      model-viewer > #ar-prompt {
+        position: absolute;
+        left: 50%;
+        bottom: 60px;
+        animation: elongate 20s infinite ease-in-out alternate;
+        display: none;
+        z-index: 50;
+      }
+
+      model-viewer[ar-status="session-started"] > #ar-prompt {
+        display: block;
+      }
+
+      model-viewer > #ar-prompt > img {
+        animation: circle 20s linear infinite;
+      }
+
       .progress-bar {
         display: block;
         width: 33%;
@@ -172,6 +188,60 @@
         border-radius: 25px;
         float: left;
         transition: width 0.3s;
+      }
+
+      #ar-button {
+        background-image: url(ar_icon.png);
+        background-repeat: no-repeat;
+        background-size: 20px 20px;
+        background-position: 12px 50%;
+        background-color: #fff;
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        white-space: nowrap;
+        bottom: 16px;
+        padding: 0px 16px 0px 40px;
+        font-family: "Programme", sans-serif;
+        font-size: 14px;
+        color: #4285f4;
+        height: 36px;
+        line-height: 36px;
+        border-radius: 18px;
+        border: 1px solid #dadce0;
+        z-index: 50;
+        cursor: none !important;
+      }
+
+      #ar-button:active {
+        background-color: #e8eaed;
+      }
+
+      #ar-button:focus {
+        outline: none;
+      }
+
+      #ar-button:focus-visible {
+        outline: 1px solid #4285f4;
+      }
+
+      @keyframes circle {
+        from {
+          transform: translateX(-50%) rotate(0deg) translateX(50px) rotate(0deg);
+        }
+        to {
+          transform: translateX(-50%) rotate(360deg) translateX(50px)
+            rotate(-360deg);
+        }
+      }
+
+      @keyframes elongate {
+        from {
+          transform: translateX(100px);
+        }
+        to {
+          transform: translateX(-100px);
+        }
       }
 
       /* --- NAVIGATION --- */
@@ -295,8 +365,9 @@
         right: 5px;
         font-size: 1rem;
         line-height: 1.1;
-        display: block;
-        text-align: justify;
+
+        display: block; /* Flow layout */
+
         color: #ffffff;
         mix-blend-mode: difference;
         z-index: 40;
@@ -403,6 +474,7 @@
         pointer-events: none;
         -webkit-user-drag: none;
         transition: transform 0s;
+        /* No global rotation - handled by class .rotate-90 */
       }
 
       /* Video styling */
@@ -413,6 +485,7 @@
         background-color: black;
       }
 
+      /* Special class for rotated videos */
       .rotate-90 {
         transform: rotate(90deg) scale(1.5) !important;
       }
@@ -669,7 +742,7 @@
         class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
       >
         <p class="text-[1rem] font-normal text-gray-500">
-          move mouse to drop images. click to expand & slide :)
+          move mouse to drop images. click to expand & slide :))
         </p>
       </div>
       <div id="backdrop"></div>
@@ -709,7 +782,7 @@
       for (let i = 0; i < projectFolders.length; i++) {
         const folder = projectFolders[i];
         const arr = [`bilder/${folder}/${folder}cover.webp`];
-        for (let j = 1; j <= 30; j++) {
+        for (let j = 1; j <= 27; j++) {
           arr.push(`bilder/${folder}/${j}.webp`);
         }
         GALLERIES.push(arr);
@@ -735,6 +808,7 @@
         "In a city where Baroque grandeur collides with social invisibility, Perdus explores the rift between power and marginalization. Anchored at the Place des Victoires, the project weaves together visual scans, historical context, and social critique into a silent dialogue on decay, dignity, and inequality. It challenges the viewer to perceive Paris not merely as a museum of architecture, but as a stage for the pressing social realities of our time.",
         "Bypassing the scenic Mount Pilatus and the Chapel Bridge, this work focuses on Emil Manser. The goal was to capture the imperfect side of Lucerne: raw, loud, and authentic. Using Python, I built a custom generator that reconstructed Manser’s portrait entirely from the text of his famous street signs. The result is a digital synthesis of street philosophy and code—a postcard from the real city, far removed from the tourist gaze.",
       ];
+
       // --- STATE ---
       const state = {
         lastX: 0,
@@ -1105,6 +1179,7 @@
         const rawGrowthW = currentW * (growthFactor - 1);
         const rawGrowthH = currentH * (growthFactor - 1);
 
+        // Compensation Translation based on Anchor
         if (anchor === "top") dY = rawGrowthH / 2;
         else if (anchor === "bottom") dY = -rawGrowthH / 2;
         else if (anchor === "left") dX = rawGrowthW / 2;
@@ -1364,6 +1439,7 @@
 
         const finalScale = Math.min(sTop, sBottom, sLeft, sRight);
         state.currentScale = finalScale;
+        state.initialScale = finalScale; // SAVE initial for reset
         state.currentTx = 0;
         state.currentTy = 0;
 
@@ -1419,7 +1495,7 @@
       }
 
       function handleSlideshowClick(e, element) {
-        if (state.isAnimating) return;
+        // Removed blocking check for instant skipping
         const rect = element.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const width = rect.width;
@@ -1428,50 +1504,32 @@
       }
 
       function changeSlide(direction) {
-        // Instant Swap Logic for Desktop, Drag for Mobile
         if (!state.zoomedElement) return;
 
-        // Prevent rapid overlapping requests for smooth loop
-        state.slideRequestId = (state.slideRequestId || 0) + 1;
-        const reqId = state.slideRequestId;
-
-        state.isAnimating = true;
+        // Immediately update index so repeated clicks work
         const gallery = GALLERIES[state.currentGalleryIndex];
-
-        // Calculate next index (with wrapping)
         let nextIdx = state.currentSlideIndex + direction;
         if (nextIdx >= gallery.length) nextIdx = 0;
         if (nextIdx < 0) nextIdx = gallery.length - 1;
 
-        // Immediately update state index so multiple clicks work
         state.currentSlideIndex = nextIdx;
         state.zoomedElement.dataset.slideIndex = nextIdx;
 
         // Clear existing loader timeout
         if (state.loaderTimeout) clearTimeout(state.loaderTimeout);
-
         // Remove existing loader
         const existingLoader =
           state.zoomedElement.querySelector(".slide-loader");
         if (existingLoader) existingLoader.remove();
 
-        // 1s Delay for Loader
+        // 300ms Delay for Loader
+        const myIndex = nextIdx; // Capture index for closure
         state.loaderTimeout = setTimeout(() => {
-          // Only show if still waiting for THIS request
-          if (reqId === state.slideRequestId) {
+          // Only show if we are still on this index (basic check)
+          if (state.currentSlideIndex === myIndex) {
             const loader = document.createElement("div");
             loader.className = "slide-loader";
-            // Inverse Scale for 5px visual size
-            // Needs current scale of parent
-            const currentScale = state.isMobile
-              ? state.currentMobileScale
-              : state.currentScale;
-            // Can't easily get precise currentScale in JS if animated, but
-            // we can approximate or use CSS var if supported.
-            // Simple hack: Use style transform
-            // loader.style.transform = `translate(-50%, -50%) scale(${1/currentScale})`;
-            // Let's rely on CSS if possible or just accept small scaling diffs.
-            // Actually, user wants exact 5px.
+
             const scale = getComputedStyle(
               state.zoomedElement
             ).getPropertyValue("--target-scale");
@@ -1488,7 +1546,7 @@
                  `;
             state.zoomedElement.appendChild(loader);
           }
-        }, 1000);
+        }, 300);
 
         const url = gallery[nextIdx];
 
@@ -1496,31 +1554,31 @@
           url,
           state.zoomedElement,
           (newEl) => {
-            // Check if this is still the latest request
-            if (reqId !== state.slideRequestId) {
-              newEl.remove(); // Discard if old
+            // Success
+            // Check if this image matches the CURRENT index
+            // This handles rapid clicking by discarding stale loads
+            if (state.currentSlideIndex !== nextIdx) {
+              newEl.remove();
               return;
             }
 
-            // Success
             if (state.loaderTimeout) clearTimeout(state.loaderTimeout);
             const loader = state.zoomedElement.querySelector(".slide-loader");
             if (loader) loader.remove();
 
-            // INSTANT SWAP: Remove all others
+            // INSTANT SWAP
             const oldSlides =
               state.zoomedElement.querySelectorAll(".slide-image");
             oldSlides.forEach((el) => {
               if (el !== newEl) el.remove();
             });
 
-            state.isAnimating = false;
             preloadNeighbors(state.currentGalleryIndex, nextIdx);
           },
           () => {
-            // Error: Retry next index (Recursive skip)
-            if (reqId === state.slideRequestId) {
-              changeSlide(direction);
+            // Error handling
+            if (state.currentSlideIndex === nextIdx) {
+              changeSlide(direction); // Skip to next if fail
             }
           }
         );
