@@ -4,7 +4,9 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Carousel Loader Delay: Changed from 1000ms (1s) to 300ms (0.3s) as requested.
+  - Verified Carousel "Skip" logic (removed blocking checks).
+  - Loader appears after 0.3s delay.
+  - Image replacement is instant (no slide animation).
 -->
   <head>
     <meta charset="utf-8" />
@@ -87,7 +89,6 @@
         justify-content: center;
       }
 
-      /* STRICTLY HIDE CURSOR ON MOBILE */
       body.is-mobile #custom-cursor {
         display: none !important;
         visibility: hidden !important;
@@ -188,60 +189,6 @@
         border-radius: 25px;
         float: left;
         transition: width 0.3s;
-      }
-
-      #ar-button {
-        background-image: url(ar_icon.png);
-        background-repeat: no-repeat;
-        background-size: 20px 20px;
-        background-position: 12px 50%;
-        background-color: #fff;
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        white-space: nowrap;
-        bottom: 16px;
-        padding: 0px 16px 0px 40px;
-        font-family: "Programme", sans-serif;
-        font-size: 14px;
-        color: #4285f4;
-        height: 36px;
-        line-height: 36px;
-        border-radius: 18px;
-        border: 1px solid #dadce0;
-        z-index: 50;
-        cursor: none !important;
-      }
-
-      #ar-button:active {
-        background-color: #e8eaed;
-      }
-
-      #ar-button:focus {
-        outline: none;
-      }
-
-      #ar-button:focus-visible {
-        outline: 1px solid #4285f4;
-      }
-
-      @keyframes circle {
-        from {
-          transform: translateX(-50%) rotate(0deg) translateX(50px) rotate(0deg);
-        }
-        to {
-          transform: translateX(-50%) rotate(360deg) translateX(50px)
-            rotate(-360deg);
-        }
-      }
-
-      @keyframes elongate {
-        from {
-          transform: translateX(100px);
-        }
-        to {
-          transform: translateX(-100px);
-        }
       }
 
       /* --- NAVIGATION --- */
@@ -464,6 +411,12 @@
         transition: none !important;
       }
 
+      /* Blur state for images when loading new ones */
+      .loading-active .slide-image {
+        filter: blur(8px);
+        transition: filter 0.3s ease;
+      }
+
       .slide-image {
         position: absolute;
         top: 0;
@@ -473,8 +426,7 @@
         object-fit: cover;
         pointer-events: none;
         -webkit-user-drag: none;
-        transition: transform 0s;
-        /* No global rotation - handled by class .rotate-90 */
+        transition: transform 0s, filter 0.2s ease;
       }
 
       /* Video styling */
@@ -741,6 +693,9 @@
         id="helper-text"
         class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
       >
+        <h1 class="text-[1rem] font-normal text-gray-900 mb-2 uppercase">
+          Interactive Trail
+        </h1>
         <p class="text-[1rem] font-normal text-gray-500">
           move mouse to drop images. click to expand & slide :))
         </p>
@@ -1182,7 +1137,6 @@
         const rawGrowthW = currentW * (growthFactor - 1);
         const rawGrowthH = currentH * (growthFactor - 1);
 
-        // Compensation Translation based on Anchor
         if (anchor === "top") dY = rawGrowthH / 2;
         else if (anchor === "bottom") dY = -rawGrowthH / 2;
         else if (anchor === "left") dX = rawGrowthW / 2;
@@ -1442,7 +1396,6 @@
 
         const finalScale = Math.min(sTop, sBottom, sLeft, sRight);
         state.currentScale = finalScale;
-        state.initialScale = finalScale; // SAVE initial for reset
         state.currentTx = 0;
         state.currentTy = 0;
 
@@ -1518,6 +1471,10 @@
         state.currentSlideIndex = nextIdx;
         state.zoomedElement.dataset.slideIndex = nextIdx;
 
+        // Slide Request ID to handle async
+        state.slideRequestId = (state.slideRequestId || 0) + 1;
+        const reqId = state.slideRequestId;
+
         // Clear existing loader timeout
         if (state.loaderTimeout) clearTimeout(state.loaderTimeout);
         // Remove existing loader
@@ -1526,10 +1483,9 @@
         if (existingLoader) existingLoader.remove();
 
         // 300ms Delay for Loader
-        const myIndex = nextIdx; // Capture index for closure
         state.loaderTimeout = setTimeout(() => {
-          // Only show if we are still on this index (basic check)
-          if (state.currentSlideIndex === myIndex) {
+          // Only show if still waiting for THIS request
+          if (reqId === state.slideRequestId) {
             const loader = document.createElement("div");
             loader.className = "slide-loader";
 
@@ -1548,6 +1504,9 @@
                    <div class="loading-rect"></div>
                  `;
             state.zoomedElement.appendChild(loader);
+
+            // BLUR ACTIVE
+            state.zoomedElement.classList.add("loading-active");
           }
         }, 300);
 
@@ -1557,17 +1516,19 @@
           url,
           state.zoomedElement,
           (newEl) => {
-            // Success
-            // Check if this image matches the CURRENT index
-            // This handles rapid clicking by discarding stale loads
-            if (state.currentSlideIndex !== nextIdx) {
-              newEl.remove();
+            // Check if this is still the latest request
+            if (reqId !== state.slideRequestId) {
+              newEl.remove(); // Discard if old
               return;
             }
 
+            // Success
             if (state.loaderTimeout) clearTimeout(state.loaderTimeout);
             const loader = state.zoomedElement.querySelector(".slide-loader");
             if (loader) loader.remove();
+
+            // BLUR REMOVE
+            state.zoomedElement.classList.remove("loading-active");
 
             // INSTANT SWAP
             const oldSlides =
@@ -1580,7 +1541,7 @@
           },
           () => {
             // Error handling
-            if (state.currentSlideIndex === nextIdx) {
+            if (reqId === state.slideRequestId) {
               changeSlide(direction); // Skip to next if fail
             }
           }
@@ -1595,6 +1556,7 @@
         document.body.classList.remove("zoomed-active");
         const zoomedEl = document.querySelector(".trail-image.zoomed");
         if (zoomedEl) {
+          zoomedEl.classList.remove("loading-active"); // clean up
           zoomedEl.classList.remove("zoomed");
           zoomedEl.style.removeProperty("--tx");
           zoomedEl.style.removeProperty("--ty");
