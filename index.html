@@ -4,14 +4,13 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Verified Carousel "Skip" logic (removed blocking checks).
-  - Loader appears after 0.3s delay.
-  - Image replacement is instant (no slide animation).
+  - Mobile Scroll Interaction: Reversed rotation (now spins right when scrolling down).
+  - Model Scale: Added scale="0.8 0.8 0.8" to make the GLB slightly smaller.
 -->
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>hallo</title>
+    <title>ggg</title>
 
     <!-- CSP: Permissive settings -->
     <meta
@@ -89,6 +88,7 @@
         justify-content: center;
       }
 
+      /* STRICTLY HIDE CURSOR ON MOBILE */
       body.is-mobile #custom-cursor {
         display: none !important;
         visibility: hidden !important;
@@ -141,6 +141,7 @@
         height: 100%;
         background-color: #ffffff;
         outline: none;
+        touch-action: pan-y; /* Allow scrolling on model */
       }
 
       model-viewer > #ar-prompt {
@@ -242,7 +243,7 @@
         cursor: pointer;
       }
 
-      /* SCALE BUTTON (Desktop) */
+      /* SCALE BUTTON (Desktop) - CLEAN STYLE */
       #nav-scale {
         position: absolute;
         right: 0;
@@ -259,9 +260,35 @@
         z-index: 0;
       }
 
+      /* Glitch text behind */
+      #nav-scale::before {
+        content: "image";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        color: #fff;
+        background: transparent;
+        opacity: 0;
+        z-index: -1;
+        pointer-events: none;
+        transition: opacity 0.1s;
+        /* Subtle offset */
+        transform: translate(2px, 0px);
+        mix-blend-mode: exclusion;
+        will-change: opacity;
+      }
+
+      #nav-scale:hover::before {
+        opacity: 1;
+      }
+
       #nav-scale .front {
         position: relative;
         z-index: 2;
+        display: block;
+        color: #ffffff;
         mix-blend-mode: difference;
       }
 
@@ -338,11 +365,47 @@
       }
 
       @media (max-width: 800px) {
+        /* Enable Scroll on Container */
+        #about-page {
+          overflow-y: auto;
+          overflow-x: hidden;
+          -webkit-overflow-scrolling: touch;
+          touch-action: auto !important; /* Allow Vertical Scroll */
+        }
+
+        /* Fix Model to background so it scrolls away */
+        #about-page model-viewer {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100dvh;
+          touch-action: pan-y; /* Ensure scroll passes through */
+          z-index: 1;
+        }
+
         .about-bottom-text {
+          position: relative;
+          margin-top: 70vh; /* Start lower down */
+
           text-align: left;
           line-height: 1.3;
           bottom: 0;
-          padding-bottom: calc(5px + env(safe-area-inset-bottom));
+
+          /* Padding */
+          padding-left: 10px;
+          padding-right: 10px;
+          padding-bottom: calc(20px + env(safe-area-inset-bottom));
+
+          /* UPDATED: Solid Black text on Mobile */
+          color: black;
+          mix-blend-mode: normal;
+
+          pointer-events: auto;
+          z-index: 40;
+
+          /* Ensure it has size to scroll */
+          min-height: 50vh;
         }
 
         .about-bio {
@@ -355,8 +418,10 @@
           line-height: 1.3;
         }
         .skill-item {
+          display: block; /* Stack vertical */
           margin-left: 0;
-          margin-right: 2rem;
+          margin-right: 0;
+          margin-bottom: 0;
         }
       }
 
@@ -641,6 +706,7 @@
         poster="poster.webp"
         shadow-intensity="0"
         exposure="0.98"
+        scale="0.67 0.67 0.67"
       >
         <div class="progress-bar hide" slot="progress-bar">
           <div class="update-bar"></div>
@@ -896,6 +962,20 @@
         modelViewer.addEventListener("progress", onProgress);
       }
 
+      // --- MOBILE SCROLL SYNC ---
+      // Syncs page scroll to model spin on mobile
+      aboutPage.addEventListener("scroll", (e) => {
+        if (state.isMobile) {
+          const scrollTop = aboutPage.scrollTop;
+          // REVERSED rotation: -scrollTop
+          const rotation = -scrollTop * 0.009;
+          const orbit = modelViewer.getCameraOrbit();
+
+          // Update theta (horizontal/spin) while keeping phi/radius
+          modelViewer.cameraOrbit = `${rotation}rad ${orbit.phi}rad ${orbit.radius}m`;
+        }
+      });
+
       // --- HELPER FUNCTIONS ---
       const updateInfo = (boxId) => {
         const projName = PROJECT_NAMES[boxId - 1] || "";
@@ -1137,6 +1217,7 @@
         const rawGrowthW = currentW * (growthFactor - 1);
         const rawGrowthH = currentH * (growthFactor - 1);
 
+        // Compensation Translation based on Anchor
         if (anchor === "top") dY = rawGrowthH / 2;
         else if (anchor === "bottom") dY = -rawGrowthH / 2;
         else if (anchor === "left") dX = rawGrowthW / 2;
@@ -1201,10 +1282,15 @@
       document.addEventListener(
         "touchmove",
         (e) => {
+          // UPDATED: Ignore if about active so we don't block scrolling
+          if (state.aboutActive) return;
+
           if (e.target.closest("model-viewer") || state.isZoomed) return;
           if (!state.isMobile) return;
           if (state.isLoading) return;
+
           if (!state.isZoomed) e.preventDefault();
+
           const touch = e.touches[0];
           const cx = touch.clientX;
           const cy = touch.clientY;
