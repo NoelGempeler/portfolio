@@ -4,8 +4,8 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - Mobile Scroll Interaction: Reversed rotation (now spins right when scrolling down).
-  - Model Scale: Added scale="0.8 0.8 0.8" to make the GLB slightly smaller.
+  - Audio Tweak: Set 'shwoosh.wav' playbackRate to 1.15 in zoomOut().
+    - This makes the sound play faster/shorter (approx 0.9x duration) as requested.
 -->
   <head>
     <meta charset="utf-8" />
@@ -139,26 +139,12 @@
       model-viewer {
         width: 100%;
         height: 100%;
-        background-color: #ffffff;
+        background-color: transparent;
         outline: none;
-        touch-action: pan-y; /* Allow scrolling on model */
-      }
-
-      model-viewer > #ar-prompt {
-        position: absolute;
-        left: 50%;
-        bottom: 60px;
-        animation: elongate 20s infinite ease-in-out alternate;
-        display: none;
-        z-index: 50;
-      }
-
-      model-viewer[ar-status="session-started"] > #ar-prompt {
-        display: block;
-      }
-
-      model-viewer > #ar-prompt > img {
-        animation: circle 20s linear infinite;
+        touch-action: pan-y;
+        z-index: 0;
+        /* Force no cursor to override library defaults */
+        cursor: none !important;
       }
 
       .progress-bar {
@@ -202,25 +188,47 @@
         z-index: 9999;
         color: #ffffff;
         mix-blend-mode: difference;
-        display: grid;
-        grid-template-columns: max-content max-content max-content;
-        column-gap: 6rem;
-        align-items: start;
-        justify-content: start;
+        display: flex;
+        gap: 4rem; /* Spacing between items */
+        align-items: baseline;
+        justify-content: flex-start;
         transition: all 0.5s ease;
+      }
+
+      /* Gigergrafik Toggle Styles */
+      #nav-home span {
+        transition: opacity 0.2s ease;
+      }
+      #nav-home.g-mode .char-other {
+        opacity: 0;
       }
 
       @media (max-width: 800px) {
         nav {
-          grid-template-columns: 1fr;
-          column-gap: 1rem;
-          row-gap: 0.5rem;
-          justify-content: space-between;
-          display: flex;
-          flex-wrap: wrap;
+          display: grid;
+          grid-template-columns: max-content max-content max-content;
+          column-gap: 4rem;
+          justify-content: start;
+          overflow-x: auto;
+          white-space: nowrap;
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+          gap: 0;
+          column-gap: 4rem;
         }
-        #nav-center {
+        nav::-webkit-scrollbar {
           display: none;
+        }
+
+        #nav-center {
+          display: block !important;
+          text-align: left;
+          margin-right: 0; /* Reset flex margin */
+        }
+
+        #nav-sound,
+        #nav-scale {
+          display: none !important;
         }
       }
 
@@ -235,6 +243,8 @@
         white-space: nowrap;
         overflow: visible;
         text-align: left;
+        /* UPDATED: Push Scale/Sound to the right on Desktop */
+        margin-right: auto;
       }
 
       #nav-center a {
@@ -243,47 +253,32 @@
         cursor: pointer;
       }
 
-      /* SCALE BUTTON (Desktop) - CLEAN STYLE */
+      /* SOUND BUTTON (Desktop) - RELATIVE IN FLOW */
+      #nav-sound {
+        position: relative;
+        cursor: pointer;
+        pointer-events: auto;
+        user-select: none;
+        z-index: 0;
+      }
+
+      /* SCALE BUTTON (Desktop) - RELATIVE IN FLOW */
       #nav-scale {
-        position: absolute;
-        right: 0;
-        top: 0;
+        position: relative;
         display: none;
         cursor: pointer;
         pointer-events: auto;
         background-color: #000;
         color: #fff;
-        padding: 2px 6px;
+        padding: 0 6px;
         font-size: 1rem;
         mix-blend-mode: normal;
         user-select: none;
         z-index: 0;
+        align-self: baseline; /* Ensure it sits on baseline */
       }
 
-      /* Glitch text behind */
-      #nav-scale::before {
-        content: "image";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        color: #fff;
-        background: transparent;
-        opacity: 0;
-        z-index: -1;
-        pointer-events: none;
-        transition: opacity 0.1s;
-        /* Subtle offset */
-        transform: translate(2px, 0px);
-        mix-blend-mode: exclusion;
-        will-change: opacity;
-      }
-
-      #nav-scale:hover::before {
-        opacity: 1;
-      }
-
+      /* Front Text: White, Difference Mode */
       #nav-scale .front {
         position: relative;
         z-index: 2;
@@ -292,6 +287,7 @@
         mix-blend-mode: difference;
       }
 
+      /* Back Text: White (Visible on Black BG) */
       #nav-scale .back {
         position: absolute;
         top: 0;
@@ -302,11 +298,12 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #000000;
+        color: #ffffff;
         opacity: 0;
         transition: opacity 0.1s ease;
         pointer-events: none;
         will-change: opacity;
+        transform: translate(0, 0);
       }
 
       #nav-scale:hover .back {
@@ -339,9 +336,7 @@
         right: 5px;
         font-size: 1rem;
         line-height: 1.1;
-
-        display: block; /* Flow layout */
-
+        display: block;
         color: #ffffff;
         mix-blend-mode: difference;
         z-index: 40;
@@ -365,46 +360,36 @@
       }
 
       @media (max-width: 800px) {
-        /* Enable Scroll on Container */
         #about-page {
           overflow-y: auto;
           overflow-x: hidden;
           -webkit-overflow-scrolling: touch;
-          touch-action: auto !important; /* Allow Vertical Scroll */
+          touch-action: auto !important;
         }
 
-        /* Fix Model to background so it scrolls away */
         #about-page model-viewer {
           position: absolute;
           top: 0;
           left: 0;
           width: 100%;
           height: 100dvh;
-          touch-action: pan-y; /* Ensure scroll passes through */
-          z-index: 1;
+          touch-action: pan-y;
+          z-index: 0;
         }
 
         .about-bottom-text {
           position: relative;
-          margin-top: 70vh; /* Start lower down */
-
+          margin-top: 70vh;
           text-align: left;
           line-height: 1.3;
           bottom: 0;
-
-          /* Padding */
-          padding-left: 10px;
+          padding-left: 5px;
           padding-right: 10px;
           padding-bottom: calc(20px + env(safe-area-inset-bottom));
-
-          /* UPDATED: Solid Black text on Mobile */
-          color: black;
+          color: #000000;
           mix-blend-mode: normal;
-
           pointer-events: auto;
           z-index: 40;
-
-          /* Ensure it has size to scroll */
           min-height: 50vh;
         }
 
@@ -418,7 +403,7 @@
           line-height: 1.3;
         }
         .skill-item {
-          display: block; /* Stack vertical */
+          display: block;
           margin-left: 0;
           margin-right: 0;
           margin-bottom: 0;
@@ -476,7 +461,6 @@
         transition: none !important;
       }
 
-      /* Blur state for images when loading new ones */
       .loading-active .slide-image {
         filter: blur(8px);
         transition: filter 0.3s ease;
@@ -494,7 +478,6 @@
         transition: transform 0s, filter 0.2s ease;
       }
 
-      /* Video styling */
       video.slide-image {
         height: 94%;
         top: 3%;
@@ -502,7 +485,6 @@
         background-color: black;
       }
 
-      /* Special class for rotated videos */
       .rotate-90 {
         transform: rotate(90deg) scale(1.5) !important;
       }
@@ -669,22 +651,36 @@
     </div>
 
     <!-- 1. CUSTOM CURSOR -->
-    <div id="custom-cursor">!</div>
+    <div id="custom-cursor">+</div>
 
-    <!-- 3. TOP NAVIGATION -->
+    <!-- 3. TOP NAVIGATION (UPDATED ORDER) -->
     <nav>
-      <div id="nav-home" class="nav-text">gigergrafik</div>
-      <!-- Email Link -->
+      <!-- 1. Gigergrafik (Wrapped in spans for toggle) -->
+      <div id="nav-home" class="nav-text">
+        <span class="char-g">g</span><span class="char-other">i</span
+        ><span class="char-g">g</span><span class="char-other">e</span
+        ><span class="char-other">r</span><span class="char-g">g</span
+        ><span class="char-other">r</span><span class="char-other">a</span
+        ><span class="char-other">f</span><span class="char-other">i</span
+        ><span class="char-other">k</span>
+      </div>
+
+      <!-- 2. Über -->
+      <div id="nav-about" class="nav-text">über</div>
+
+      <!-- 3. Mail / Project Name (Center) - Pushes rest to right -->
       <div id="nav-center" class="nav-text">
         <a href="mailto:giger@grafik.ch" target="_blank">giger@grafik.ch</a>
       </div>
-      <div id="nav-about" class="nav-text">über</div>
 
-      <!-- Scale Button -->
+      <!-- 4. Scale Button (Relative) -->
       <div id="nav-scale" class="nav-text">
         <span class="front">scale</span>
         <span class="back">image</span>
       </div>
+
+      <!-- 5. Sound Button (Relative) -->
+      <div id="nav-sound" class="nav-text">unmute</div>
     </nav>
 
     <!-- 4. FOOTER -->
@@ -697,7 +693,6 @@
       <!-- model-viewer logic directly integrated -->
       <model-viewer
         src="scans/untitled1.glb"
-        ar
         ar-modes="webxr scene-viewer quick-look"
         camera-controls
         orbit-sensitivity="1.5"
@@ -706,11 +701,14 @@
         poster="poster.webp"
         shadow-intensity="0"
         exposure="0.98"
-        scale="0.67 0.67 0.67"
+        scale="0.8 0.8 0.8"
+        interaction-prompt="none"
       >
         <div class="progress-bar hide" slot="progress-bar">
           <div class="update-bar"></div>
         </div>
+        <!-- EMPTY INTERACTION PROMPT SLOT -->
+        <div slot="interaction-prompt"></div>
       </model-viewer>
 
       <div class="about-center-text"></div>
@@ -742,7 +740,6 @@
         </div>
         <div class="about-skills-list">
           <span class="skill-item"><br /></span>
-
           <span class="skill-item">InDesign</span>
           <span class="skill-item">Illustrator</span>
           <span class="skill-item">Photoshop</span>
@@ -760,6 +757,9 @@
         id="helper-text"
         class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
       >
+        <h1 class="text-[1rem] font-normal text-gray-900 mb-2 uppercase">
+          Interactive Trail
+        </h1>
         <p class="text-[1rem] font-normal text-gray-500">
           move mouse to drop images. click to expand & slide :))
         </p>
@@ -802,7 +802,7 @@
       for (let i = 0; i < projectFolders.length; i++) {
         const folder = projectFolders[i];
         const arr = [`bilder/${folder}/${folder}cover.webp`];
-        for (let j = 1; j <= 27; j++) {
+        for (let j = 1; j <= 30; j++) {
           arr.push(`bilder/${folder}/${j}.webp`);
         }
         GALLERIES.push(arr);
@@ -856,9 +856,19 @@
         currentScale: 1,
         currentTx: 0,
         currentTy: 0,
-        // Slide loading request counter to prevent race conditions
         slideRequestId: 0,
+        // Sound State
+        isMuted: true,
+        clickAlt: false, // Alternating click sound state
       };
+
+      // --- AUDIO ---
+      const hoverSound = new Audio("sounds/click.mp3");
+      const soundOn = new Audio("sounds/on.mp3");
+      const soundOff = new Audio("sounds/off.mp3");
+      const zoomSound = new Audio("sounds/zoom.mp3");
+      const skipSound = new Audio("sounds/skip.mp3");
+      const shwooshSound = new Audio("sounds/swoosh.mp3");
 
       // --- DOM REFERENCES ---
       const canvas = document.getElementById("canvas");
@@ -868,6 +878,7 @@
       const navCenter = document.getElementById("nav-center");
       const navHome = document.getElementById("nav-home");
       const navAbout = document.getElementById("nav-about");
+      const navSound = document.getElementById("nav-sound");
       const navScale = document.getElementById("nav-scale");
       const footerText = document.getElementById("footer-text");
       const footerEl = document.querySelector("footer");
@@ -884,17 +895,6 @@
       };
       checkMobile();
       window.addEventListener("resize", checkMobile);
-
-      // --- FIX NAV WIDTH ---
-      function fixNavWidth() {
-        if (!state.isMobile) {
-          navCenter.style.width = "auto";
-          const width = navCenter.offsetWidth;
-          navCenter.style.width = width + 1 + "px";
-        }
-      }
-      document.fonts.ready.then(fixNavWidth);
-      window.addEventListener("resize", fixNavWidth);
 
       // --- PRELOAD LOGIC ---
       function preloadAllCovers() {
@@ -941,6 +941,88 @@
       }
       preloadAllCovers();
 
+      // --- SOUND LOGIC ---
+
+      // Play 'click.wav' on HOVER with clone + pitch
+      let lastHoverTime = 0;
+      function playHoverSound() {
+        if (state.isMobile) return;
+        if (state.isMuted) return;
+
+        const now = Date.now();
+        const delta = now - lastHoverTime;
+        lastHoverTime = now;
+
+        // Clone for overlap
+        const sound = hoverSound.cloneNode();
+
+        // Dynamic speed based on rapidity
+        if (delta < 200) {
+          const rate = 1 + Math.max(0, (200 - delta) / 200);
+          sound.playbackRate = rate;
+        }
+
+        sound.play().catch((e) => {});
+      }
+
+      // Play alternating 'on.wav' / 'off.wav' on CLICK
+      // Keeps state PER ELEMENT via dataset
+      function playToggleSound(e) {
+        if (state.isMobile) return;
+        if (state.isMuted) return;
+
+        const el = e.currentTarget;
+
+        // Default is 'off' (so next is 'on' -> 'on.wav')
+        const currentState = el.dataset.soundState || "off";
+
+        if (currentState === "on") {
+          soundOff.currentTime = 0;
+          soundOff.play().catch((e) => {});
+          el.dataset.soundState = "off";
+        } else {
+          soundOn.currentTime = 0;
+          soundOn.play().catch((e) => {});
+          el.dataset.soundState = "on";
+        }
+      }
+
+      // Toggle Mute Button
+      navSound.addEventListener("click", () => {
+        state.isMuted = !state.isMuted;
+        navSound.innerText = state.isMuted ? "unmute" : "mute";
+
+        if (!state.isMuted) {
+          // Just unmuted -> Play ON
+          soundOn.currentTime = 0;
+          soundOn
+            .play()
+            .then(() => {
+              soundOn.pause();
+              soundOn.currentTime = 0;
+              // Preload done
+            })
+            .catch((e) => {});
+        } else {
+          // Just muted -> Play OFF
+          soundOff.currentTime = 0;
+          soundOff.play().catch((e) => {});
+        }
+      });
+
+      // Attach Hover Listeners
+      navHome.addEventListener("mouseenter", playHoverSound);
+      navCenter.addEventListener("mouseenter", playHoverSound);
+      navAbout.addEventListener("mouseenter", playHoverSound);
+      navSound.addEventListener("mouseenter", playHoverSound);
+      navScale.addEventListener("mouseenter", playHoverSound);
+
+      // Attach Toggle Click Listeners (Home, About, Scale)
+      // Note: Scale button plays toggle sound (on/off), not zoom
+      navHome.addEventListener("click", playToggleSound);
+      navAbout.addEventListener("click", playToggleSound);
+      navScale.addEventListener("click", playToggleSound);
+
       // --- MODEL VIEWER EVENT LOGIC ---
       const onProgress = (event) => {
         const progressBar = event.target.querySelector(".progress-bar");
@@ -961,15 +1043,11 @@
       }
 
       // --- MOBILE SCROLL SYNC ---
-      // Syncs page scroll to model spin on mobile
       aboutPage.addEventListener("scroll", (e) => {
         if (state.isMobile) {
           const scrollTop = aboutPage.scrollTop;
-          // REVERSED rotation: -scrollTop
-          const rotation = -scrollTop * 0.009;
+          const rotation = -scrollTop * 0.005;
           const orbit = modelViewer.getCameraOrbit();
-
-          // Update theta (horizontal/spin) while keeping phi/radius
           modelViewer.cameraOrbit = `${rotation}rad ${orbit.phi}rad ${orbit.radius}m`;
         }
       });
@@ -985,7 +1063,7 @@
       const resetInfo = () => {
         if (navCenter)
           navCenter.innerHTML =
-            '<a href="mailto:giger@grafik.ch" target="_blank">hello@gigergrafik.ch</a>';
+            '<a href="mailto:giger@grafik.ch" target="_blank">giger@grafik.ch</a>';
         if (footerText) footerText.innerText = "";
       };
 
@@ -1014,14 +1092,17 @@
         onError,
         className = "slide-image"
       ) {
-        const img = document.createElement("img");
+        // 1. Try Image (WebP)
+        const img = new Image();
         img.className = className;
+
         img.onload = () => {
           container.appendChild(img);
           if (onSuccess) onSuccess(img);
         };
+
         img.onerror = () => {
-          const vidSrc = src.replace(".webp", ".mp4");
+          // 2. Try Video (MP4)
           const vid = document.createElement("video");
           vid.className = className;
           vid.muted = true;
@@ -1036,6 +1117,7 @@
           };
 
           vid.onerror = () => {
+            // 3. Try Rotated Video (-90.mp4)
             const vidRot = document.createElement("video");
             vidRot.className = className + " rotate-90";
             vidRot.muted = true;
@@ -1050,13 +1132,18 @@
             };
 
             vidRot.onerror = () => {
+              // All failed
               if (onError) onError();
             };
-            vidRot.src = src.replace(".webp", "-90.mp4");
+
+            const basePath = src.substring(0, src.lastIndexOf("."));
+            vidRot.src = basePath + "-90.mp4";
           };
 
-          vid.src = src.replace(".webp", ".mp4");
+          const basePath = src.substring(0, src.lastIndexOf("."));
+          vid.src = basePath + ".mp4";
         };
+
         img.src = src;
       }
 
@@ -1071,30 +1158,65 @@
         }
         canvas.classList.add("hidden-canvas");
         state.aboutActive = true;
+
+        // Hide Über link when active
+        navAbout.style.visibility = "hidden";
+
         setTimeout(() => {
           aboutPage.classList.add("active");
           setTimeout(() => (aboutPage.style.opacity = "1"), 10);
         }, 400);
       });
 
-      navHome.addEventListener("click", () => {
-        state.aboutActive = false;
-        aboutPage.style.opacity = "0";
-        setTimeout(() => {
-          aboutPage.classList.remove("active");
-          canvas.classList.remove("hidden-canvas");
+      // Updated Home Click Handler: Toggle G's + Reset + Sound
+      navHome.addEventListener("click", (e) => {
+        // 1. Play Sound
+        playToggleSound(e);
+
+        // 2. Toggle 'g-mode'
+        navHome.classList.toggle("g-mode");
+
+        // Full Reset Logic
+        if (state.aboutActive) {
+          // Close About Page
+          state.aboutActive = false;
+          aboutPage.style.opacity = "0";
+
+          setTimeout(() => {
+            aboutPage.classList.remove("active");
+            canvas.classList.remove("hidden-canvas");
+            navAbout.style.visibility = "visible";
+            resetTrail();
+            state.isZoomed = false;
+            document.body.classList.remove("zoomed-active");
+            navScale.style.display = "none";
+            window.scrollTo(0, 0);
+          }, 400);
+        } else if (state.isZoomed) {
+          // Zoom out naturally then reset
+          zoomOut();
+          setTimeout(() => {
+            resetTrail();
+            window.scrollTo(0, 0);
+          }, 550);
+        } else {
+          // Just clear
           resetTrail();
-        }, 400);
+          window.scrollTo(0, 0);
+        }
       });
 
       // --- INFINITE SCALE LOGIC ---
       navScale.addEventListener("click", () => {
         if (!state.zoomedElement || state.isMobile) return;
 
+        // Remove flicker on first use
+        navScale.classList.remove("flicker-anim");
+
         const el = state.zoomedElement;
         const rect = el.getBoundingClientRect();
         const footerRect = footerEl.getBoundingClientRect();
-        const limitBottom = footerRect.top;
+        const limitBottom = footerRect.top - 2;
         const limitRight = window.innerWidth;
 
         const isTop = Math.abs(rect.top) < 2;
@@ -1240,6 +1362,8 @@
         el.style.setProperty("--target-scale", nextScale);
         el.style.setProperty("--tx", state.currentTx + "px");
         el.style.setProperty("--ty", state.currentTy + "px");
+
+        // Button stays visible
       });
 
       // --- MOUSE MOVEMENT ---
@@ -1254,6 +1378,10 @@
         customCursor.style.top = cy + "px";
 
         let rotation = 0;
+
+        // Check hover state for Model Viewer
+        const isOverModel = e.target.tagName.toLowerCase() === "model-viewer";
+
         if (state.isZoomed && state.zoomedElement) {
           const rect = state.zoomedElement.getBoundingClientRect();
           if (
@@ -1262,17 +1390,24 @@
             cy >= rect.top &&
             cy <= rect.bottom
           ) {
+            // Inside box (Arrows)
             const relX = cx - rect.left;
             customCursor.innerHTML =
               relX < rect.width / 2 ? "&larr;" : "&rarr;";
             rotation = 0;
           } else {
-            customCursor.innerHTML = "!";
-            rotation = 0;
+            // Outside box (Backdrop area) -> Close Cursor
+            customCursor.innerHTML = "+";
+            rotation = 45; // Turns + into x
           }
+        } else if (isOverModel) {
+          // Updated requirement: Use "+" when over model viewer
+          customCursor.innerHTML = "+";
+          rotation = 0;
         } else {
-          customCursor.innerHTML = "!";
+          customCursor.innerHTML = "+";
         }
+
         customCursor.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
         handleTrailLogic(cx, cy);
       });
@@ -1280,7 +1415,6 @@
       document.addEventListener(
         "touchmove",
         (e) => {
-          // UPDATED: Ignore if about active so we don't block scrolling
           if (state.aboutActive) return;
 
           if (e.target.closest("model-viewer") || state.isZoomed) return;
@@ -1363,6 +1497,9 @@
         const container = document.createElement("div");
         container.className = "trail-image";
 
+        // Attach Sound to new boxes
+        container.addEventListener("mouseenter", playHoverSound);
+
         const width = state.isMobile ? CONFIG.mobileBoxWidth : CONFIG.boxWidth;
         const height = state.isMobile
           ? CONFIG.mobileBoxHeight
@@ -1370,7 +1507,6 @@
         container.style.width = width + "px";
         container.style.height = height + "px";
 
-        // Apply Visual Scale for Mobile (using transform)
         if (state.isMobile) {
           container.style.setProperty("--idle-scale", CONFIG.mobileScale);
         } else {
@@ -1406,6 +1542,16 @@
             resetInfo();
           }
         });
+
+        // Play Zoom Sound on Click ONLY if not already zoomed
+        container.addEventListener("click", () => {
+          // !state.isZoomed check added to prevent playing when skipping
+          if (!state.isMuted && !state.isMobile && !state.isZoomed) {
+            zoomSound.currentTime = 0;
+            zoomSound.play().catch((e) => {});
+          }
+        });
+
         canvas.appendChild(container);
       }
 
@@ -1424,7 +1570,6 @@
           if (sib !== element) sib.classList.add("faded");
         });
 
-        // MOBILE SCALING
         if (state.isMobile) {
           const vpW = window.innerWidth;
           const currentW = parseFloat(element.style.width);
@@ -1455,11 +1600,10 @@
           return;
         }
 
-        // DESKTOP SCALING (Initial)
         const canvasW = canvas.offsetWidth;
         const canvasH = canvas.offsetHeight;
         const footerRect = footerEl.getBoundingClientRect();
-        const limitBottom = footerRect.top; // Strict Boundary
+        const limitBottom = footerRect.top - 2;
 
         const currentW = parseFloat(element.style.width);
         const currentH = parseFloat(element.style.height);
@@ -1483,7 +1627,6 @@
         state.currentTx = 0;
         state.currentTy = 0;
 
-        // Identify Anchor
         let anchor = "";
         if (Math.abs(finalScale - sTop) < 0.01) anchor = "top";
         else if (Math.abs(finalScale - sBottom) < 0.01) anchor = "bottom";
@@ -1496,46 +1639,58 @@
         element.style.setProperty("--ty", "0px");
         element.classList.add("zoomed");
 
+        // SHOW SCALE BUTTON (and animate flicker)
         navScale.style.display = "block";
+        navScale.classList.remove("flicker-anim");
       }
 
-      // ... (Rest of Swipe/Slideshow logic unchanged) ...
       function addSwipeListener(element) {
         let touchStartX = 0;
-        const handleTouchStart = (e) => {
-          touchStartX = e.touches[0].screenX;
-          element.classList.add("no-transition");
-        };
+        let touchStartY = 0;
+
         const handleTouchMove = (e) => {
           if (!state.zoomedElement) return;
           const touchCurrentX = e.touches[0].screenX;
+          const touchCurrentY = e.touches[0].screenY;
+
           const deltaX = touchCurrentX - touchStartX;
+          const deltaY = touchCurrentY - touchStartY;
 
-          const scale = state.currentMobileScale || 1;
-          const effectiveDelta = deltaX / scale;
-
-          element.style.transform = `translate(-50%, -50%) scale(var(--target-scale)) translateX(${effectiveDelta}px)`;
+          if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+            e.preventDefault();
+          }
         };
+
         const handleTouchEnd = (e) => {
-          element.classList.remove("no-transition");
+          element.removeEventListener("touchmove", handleTouchMove);
+          element.removeEventListener("touchend", handleTouchEnd);
+
           const touchEndX = e.changedTouches[0].screenX;
           const deltaX = touchEndX - touchStartX;
-          element.style.transform = "";
+
           if (deltaX < -50) changeSlide(1);
           else if (deltaX > 50) changeSlide(-1);
-          element.removeEventListener("touchmove", handleTouchMove);
         };
+
+        const handleTouchStart = (e) => {
+          if (e.touches.length > 1) return;
+          touchStartX = e.touches[0].screenX;
+          touchStartY = e.touches[0].screenY;
+
+          element.addEventListener("touchmove", handleTouchMove, {
+            passive: false,
+          });
+          element.addEventListener("touchend", handleTouchEnd, {
+            passive: true,
+          });
+        };
+
         element.addEventListener("touchstart", handleTouchStart, {
           passive: true,
         });
-        element.addEventListener("touchmove", handleTouchMove, {
-          passive: false,
-        });
-        element.addEventListener("touchend", handleTouchEnd, { passive: true });
       }
 
       function handleSlideshowClick(e, element) {
-        // Removed blocking check for instant skipping
         const rect = element.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const width = rect.width;
@@ -1546,7 +1701,6 @@
       function changeSlide(direction) {
         if (!state.zoomedElement) return;
 
-        // Immediately update index so repeated clicks work
         const gallery = GALLERIES[state.currentGalleryIndex];
         let nextIdx = state.currentSlideIndex + direction;
         if (nextIdx >= gallery.length) nextIdx = 0;
@@ -1555,20 +1709,21 @@
         state.currentSlideIndex = nextIdx;
         state.zoomedElement.dataset.slideIndex = nextIdx;
 
-        // Slide Request ID to handle async
         state.slideRequestId = (state.slideRequestId || 0) + 1;
         const reqId = state.slideRequestId;
 
-        // Clear existing loader timeout
+        // Play Skip Sound (if desktop)
+        if (!state.isMuted && !state.isMobile) {
+          skipSound.currentTime = 0;
+          skipSound.play().catch((e) => {});
+        }
+
         if (state.loaderTimeout) clearTimeout(state.loaderTimeout);
-        // Remove existing loader
         const existingLoader =
           state.zoomedElement.querySelector(".slide-loader");
         if (existingLoader) existingLoader.remove();
 
-        // 300ms Delay for Loader
         state.loaderTimeout = setTimeout(() => {
-          // Only show if still waiting for THIS request
           if (reqId === state.slideRequestId) {
             const loader = document.createElement("div");
             loader.className = "slide-loader";
@@ -1589,7 +1744,6 @@
                  `;
             state.zoomedElement.appendChild(loader);
 
-            // BLUR ACTIVE
             state.zoomedElement.classList.add("loading-active");
           }
         }, 300);
@@ -1600,21 +1754,17 @@
           url,
           state.zoomedElement,
           (newEl) => {
-            // Check if this is still the latest request
             if (reqId !== state.slideRequestId) {
-              newEl.remove(); // Discard if old
+              newEl.remove();
               return;
             }
 
-            // Success
             if (state.loaderTimeout) clearTimeout(state.loaderTimeout);
             const loader = state.zoomedElement.querySelector(".slide-loader");
             if (loader) loader.remove();
 
-            // BLUR REMOVE
             state.zoomedElement.classList.remove("loading-active");
 
-            // INSTANT SWAP
             const oldSlides =
               state.zoomedElement.querySelectorAll(".slide-image");
             oldSlides.forEach((el) => {
@@ -1624,23 +1774,32 @@
             preloadNeighbors(state.currentGalleryIndex, nextIdx);
           },
           () => {
-            // Error handling
             if (reqId === state.slideRequestId) {
-              changeSlide(direction); // Skip to next if fail
+              changeSlide(direction);
             }
           }
         );
       }
 
       function zoomOut() {
+        // Sound First - Using New Instance for Immediate Playback
+        if (!state.isMobile && !state.isMuted) {
+          const s = new Audio("sounds/swoosh.mp3");
+          s.volume = 1.0;
+          s.playbackRate = 1.7; // Make it shorter/faster
+          s.play().catch((e) => {});
+        }
+
         state.isZoomed = false;
         state.zoomedElement = null;
         resetInfo();
         navScale.style.display = "none";
+        navScale.classList.remove("flicker-anim");
         document.body.classList.remove("zoomed-active");
+
         const zoomedEl = document.querySelector(".trail-image.zoomed");
         if (zoomedEl) {
-          zoomedEl.classList.remove("loading-active"); // clean up
+          zoomedEl.classList.remove("loading-active");
           zoomedEl.classList.remove("zoomed");
           zoomedEl.style.removeProperty("--tx");
           zoomedEl.style.removeProperty("--ty");
