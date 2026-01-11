@@ -4,18 +4,16 @@
   --- FILE: index.html ---
   Combines Trail Effect, Mobile Touch Logic, and the User's exact <model-viewer> code.
   Updated: 
-  - NUCLEAR CURSOR PROOFING:
-    1. Global CSS with !important on all pseudo-classes.
-    2. SHADOW DOM PIERCER: A MutationObserver now watches the document and forcefully injects 
-       <style>* { cursor: none !important; }</style> into ANY open Shadow DOM it finds (specifically model-viewer).
-    3. POINTER CAPTURE OVERRIDE: Patched Element.prototype.setPointerCapture to prevent the browser 
-       from locking the native cursor during drags.
-    4. INTERACTION ENFORCER: Mouseover listeners force inline style cursor: none on targets.
+  - Loader Scaling Fix: 
+    - Created 'refreshLoaderScale(element)' helper.
+    - It reads '--target-scale', calculates '1/scale', and applies it to '.slide-loader'.
+    - Used in 'changeSlide' (creation) and 'navScale' (resize) to ensure dots are ALWAYS 5px visually.
+  - Cursors/Audio: Maintained previous nuclear settings.
   -->
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>gig</title>
+    <title>ggg</title>
 
     <!-- CSP: Permissive settings -->
     <meta
@@ -46,7 +44,7 @@
         font-display: swap;
       }
 
-      /* --- GLOBAL RESET & NUCLEAR CURSOR HIDE --- */
+      /* --- GLOBAL RESET & CURSOR HIDE --- */
       html,
       body {
         margin: 0;
@@ -59,15 +57,15 @@
         font-size: 1rem;
         /* Enforce hidden cursor globally */
         cursor: none !important;
-        /* Prevent text selection cursor */
-        user-select: none;
-        -webkit-user-select: none;
+        /* Prevent text selection */
+        user-select: none !important;
+        -webkit-user-select: none !important;
+
         overscroll-behavior: none;
         touch-action: none;
       }
 
       /* AGGRESSIVE CURSOR HIDING - ALL STATES & INTERACTIONS */
-      /* This ensures NO element ever shows a cursor */
       *,
       *::before,
       *::after,
@@ -78,7 +76,8 @@
       *:focus-within,
       *:visited {
         box-sizing: border-box;
-        cursor: none !important;
+        cursor: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=="),
+          none !important;
       }
 
       /* Explicitly target interactive elements to override UA stylesheets */
@@ -94,8 +93,10 @@
       span,
       nav,
       footer {
-        cursor: none !important;
+        cursor: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=="),
+          none !important;
         caret-color: transparent !important;
+        outline: none !important; /* Hide focus rings */
       }
 
       /* Hide Scrollbars */
@@ -110,7 +111,7 @@
         top: 0;
         left: 0;
         pointer-events: none;
-        z-index: 2147483647; /* MAX INT Z-INDEX */
+        z-index: 2147483647;
         font-family: "Programme", sans-serif;
         font-weight: 400;
         font-size: 3rem;
@@ -121,8 +122,8 @@
         transition: transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
         will-change: transform, top, left;
         text-align: center;
-        width: 3rem;
-        height: 3rem;
+        width: 4rem;
+        height: 4rem;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -184,7 +185,7 @@
         touch-action: pan-y;
         z-index: 0;
         cursor: none !important;
-        --poster-color: transparent; /* Prevent white flash */
+        --poster-color: transparent;
       }
 
       .progress-bar {
@@ -229,7 +230,7 @@
         color: #ffffff;
         mix-blend-mode: difference;
         display: flex;
-        gap: 4rem; /* Spacing between items */
+        gap: 4rem;
         align-items: baseline;
         justify-content: flex-start;
         transition: all 0.5s ease;
@@ -383,7 +384,7 @@
       }
 
       .spec-sep {
-        margin: 0 0.75rem; /* Adjustable distance around pipe */
+        margin: 0 0.25rem; /* Adjustable distance around pipe */
       }
 
       /* --- ABOUT TEXT --- */
@@ -709,9 +710,9 @@
     </div>
 
     <!-- 1. CUSTOM CURSOR -->
-    <div id="custom-cursor">!</div>
+    <div id="custom-cursor">+</div>
 
-    <!-- 3. TOP NAVIGATION (UPDATED ORDER) -->
+    <!-- 3. TOP NAVIGATION (UPDATED: Flex Order) -->
     <nav>
       <!-- 1. Gigergrafik (Wrapped in spans for toggle) -->
       <div id="nav-home" class="nav-text">
@@ -827,14 +828,11 @@
       console.log("Application initializing...");
 
       // --- NUCLEAR CURSOR PREVENTION SCRIPT ---
-      // 1. Force override setPointerCapture to stop browsers from locking system cursor during drag
       try {
         Element.prototype.setPointerCapture = function () {};
         Element.prototype.releasePointerCapture = function () {};
       } catch (e) {}
 
-      // 2. Continuous Shadow DOM Style Injection
-      // Watches for new shadow roots (like model-viewer's) and injects cursor hiding CSS
       const shadowObserver = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
           if (mutation.addedNodes) {
@@ -846,7 +844,6 @@
                 node.nodeType === 1 &&
                 node.tagName.toLowerCase() === "model-viewer"
               ) {
-                // Try immediately if shadowRoot is open
                 if (node.shadowRoot) injectShadowStyles(node.shadowRoot);
               }
             });
@@ -856,35 +853,48 @@
 
       shadowObserver.observe(document.body, { childList: true, subtree: true });
 
+      setInterval(() => {
+        document.querySelectorAll("*").forEach((el) => {
+          if (el.shadowRoot) injectShadowStyles(el.shadowRoot);
+        });
+      }, 500);
+
       function injectShadowStyles(shadowRoot) {
+        if (shadowRoot.querySelector("style[data-cursor-fix]")) return;
+
         const style = document.createElement("style");
+        style.setAttribute("data-cursor-fix", "true");
         style.textContent = `
-             * { cursor: none !important; caret-color: transparent !important; }
-             a, button, input, canvas, div { cursor: none !important; }
+             :host, :host *, * { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=='), none !important; caret-color: transparent !important; }
+             a, button, input, canvas, div, .container { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=='), none !important; }
           `;
         shadowRoot.appendChild(style);
       }
 
-      // Initial check for existing shadow roots
       document.querySelectorAll("*").forEach((el) => {
         if (el.shadowRoot) injectShadowStyles(el.shadowRoot);
       });
 
-      // 3. Brute Force Interaction Listeners
       ["mouseover", "mousedown", "mouseup", "click", "focus"].forEach((evt) => {
         document.addEventListener(
           evt,
           (e) => {
-            // Force inline style on anything interacted with
             if (e.target && e.target.style) {
               e.target.style.cursor = "none";
+            }
+            if (evt === "mouseup" || evt === "click") {
+              if (
+                document.activeElement &&
+                document.activeElement !== document.body
+              ) {
+                document.activeElement.blur();
+              }
             }
           },
           { capture: true, passive: true }
         );
       });
 
-      // 4. Disable defaults
       document.addEventListener("dragstart", (e) => e.preventDefault());
       document.addEventListener("selectstart", (e) => e.preventDefault());
       document.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -921,7 +931,7 @@
       for (let i = 0; i < projectFolders.length; i++) {
         const folder = projectFolders[i];
         const arr = [`bilder/${folder}/${folder}cover.webp`];
-        for (let j = 1; j <= 13; j++) {
+        for (let j = 1; j <= 30; j++) {
           arr.push(`bilder/${folder}/${j}.webp`);
         }
         GALLERIES.push(arr);
@@ -939,18 +949,18 @@
         "ANELL",
         "GARDEN SCISSORS",
       ];
-      // Updated Anell caption with strict inline style
+
       const CAPTIONS = [
-        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Editorial<span class='spec-sep'>|</span></span>BITWUSST? acts as an interface between scientific theory and visual communication. Comprising a detailed report and an accompanying poster, the project traces a spectrum of consciousness extending from atoms to algorithms. Grounded in Integrated Information Theory and Panpsychism, it investigates whether awareness is a fundamental property of matter itself or merely a result of complex processing. The work questions if feeling necessitates biological flesh, or if digital sensors can generate genuine presence. Ultimately, BITWUSST? encourages a quiet reflection on the nature of reality, bridging the organic, the mineral, and the digital.",
-        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Motion<span class='spec-sep'>|</span></span>A sandbox for visual curiosity. Ranging from TouchDesigner jams to video experiments, this is where I hunt for weird textures and unexpected aesthetics. It’s a space to play, break things, and embrace happy accidents—treating software like a messy material to see what strange visuals come out the other side.",
-        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Print<span class='spec-sep'>|</span></span>Serving as a visual evolution of the BITWUSST? project, this work translates the initial theoretical inquiry into a material outcome. Centered around a newspaper publication and a photogram series, it recontextualizes the neural networks generated during the development phase, placing them in dialogue with analog studies of form. The imagery captures a spectrum of materials—ranging from organic elements like leaves, grass, and seeds to synthetic artifacts like cables. By treating both the botanical and the technical with the same darkroom process, the work creates a unified texture where the roots of nature and the wires of technology become visually indistinguishable.",
-        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Book<span class='spec-sep'>|</span></span>One day, one class, countless stories. For the interdisciplinary project 24 Hours, I created a system that translates time into structure. Using a strict grid of 24 rows and 60 columns—representing every hour and minute—the design dictates the narrative flow. Images stream through the book, physically displacing and reorganizing the typography around them. It is a visual study of time, rhythm, and the dynamic tension between content and form.",
-        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Publication<span class='spec-sep'>|</span></span>London is usually mapped by human needs, but for this collaborative publication, we shifted the narrative. Exploring the city through the senses of 88 different species—from the peregrine falcon surveying the Thames to the urban fox navigating by scent—the project challenges our anthropocentric view of the metropolis. Each student adopted the perspective of a specific animal, visualizing how landmarks become obstacles and streets become hunting grounds. The resulting book is a collective portrait of a hidden London, documenting the impossible but necessary attempt to see the city through eyes other than our own.",
-        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Identity<span class='spec-sep'>|</span></span>HSLU Master Concerts For this campaign, I used TouchDesigner to translate the concept of resonance into a graphic system. The typography is rendered as a dispersing point cloud, creating a visual noise that implies frequency and vibration. This aesthetic—hovering between structure and chaos—captures the dynamic atmosphere of the concerts, providing a fluid identity for both the poster and the motion design.",
-        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Research<span class='spec-sep'>|</span></span>In a city where Baroque grandeur collides with social invisibility, Perdus explores the rift between power and marginalization. Anchored at the Place des Victoires, the project weaves together visual scans, historical context, and social critique into a silent dialogue on decay, dignity, and inequality. It challenges the viewer to perceive Paris not merely as a museum of architecture, but as a stage for the pressing social realities of our time.",
-        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Code<span class='spec-sep'>|</span></span>Bypassing the scenic Mount Pilatus and the Chapel Bridge, this work focuses on Emil Manser. The goal was to capture the imperfect side of Lucerne: raw, loud, and authentic. Using Python, I built a custom generator that reconstructed Manser’s portrait entirely from the text of his famous street signs. The result is a digital synthesis of street philosophy and code—a postcard from the real city, far removed from the tourist gaze.",
-        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Web<span class='spec-sep'>|</span></span>Focusing on the potential of discarded materials, Anell turns antique silverware into wearable objects. Each ring is unique, retaining the scratches and stamps of its previous life. This is the online home for the upcycling project I run with my brother. The focus here isn't on branding, but on simple reuse, taking discarded silverspoons and giving them a second life. <a href='https://anell.ch/' target='_blank' style='color: inherit; text-decoration: underline; cursor: none !important;'>anell.ch</a>",
-        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Object<span class='spec-sep'>|</span></span> This project investigates a pruning shear as a functional object through close observation, drawing, and material experimentation. I analyzed its form, mechanics, and ergonomics by producing detailed studies and translating them into print. A physical model of the object was then created to test scale and spatial presence. Finally, the tool’s effects were documented through controlled interventions on cardboard, making force, movement, and impact visible. The project approaches the everyday object as a system—where design, function, and material behavior are inseparable.",
+        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Poster<span class='spec-sep'>|</span></span>BITWUSST? acts as an interface between scientific theory and visual communication. Comprising a report and an accompanying poster, the project traces a spectrum of consciousness extending from atoms to algorithms. Grounded in Integrated Information Theory and Panpsychism, it investigates whether awareness is a fundamental property of matter itself or merely a result of complex processing. The work questions if feeling necessitates biological flesh, or if digital sensors can generate genuine presence. Ultimately, BITWUSST? encourages a quiet reflection on the nature of reality and Consciousness",
+        "<span class='caption-specs'>202x<span class='spec-sep'>|</span>Archive<span class='spec-sep'>|</span></span>A sandbox for visual curiosity. Ranging from TouchDesigner jams to video experiments, this is where I hunt for weird textures and unexpected aesthetics. It’s a space to play, break things, and embrace happy accidents, treating software like a messy material to see what strange visuals come out the other side.",
+        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Print<span class='spec-sep'>|</span></span>Serving as a visual evolution of the BITWUSST? project, this work translates the initial theoretical inquiry into a material outcome. Centered around a newspaper publication and a photogram series, it recontextualizes the neural networks generated during the development phase, placing them in dialogue with analog studies of form. The imagery captures a spectrum of materials—ranging from organic elements like leaves, grass, and seeds to synthetic artifacts like cables. By treating both the botanical and the technical with the same darkroom process, the work creates a unified texture where nature and technology come together.",
+        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Editorial<span class='spec-sep'>|</span></span>One day, one class, countless stories. For the interdisciplinary project 24 Hours, I created a system that translates time into structure. Using a grid of 24 rows and 60 columns, representing every hour and minute, the design dictates the narrative flow. Images stream through the book, physically displacing and reorganizing the typography around them. It is a visual study of time, rhythm, and the dynamic tension between content and form.",
+        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Editorial<span class='spec-sep'>|</span></span>London is usually mapped by human needs, but for this collaborative publication, we shifted the narrative. Exploring the city through the senses of 88 different species, from the peregrine falcon surveying the Thames to the urban fox navigating by scent, the project challenges our anthropocentric view of the metropolis. Each student adopted the perspective of a specific animal, visualizing how landmarks become obstacles and streets become hunting grounds. The resulting book is a collective portrait of a hidden London, documenting the impossible but necessary attempt to see the city through eyes other than our own.",
+        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Moving Poster<span class='spec-sep'>|</span></span>HSLU Master Concerts For this campaign, I used TouchDesigner to translate the concept of resonance into a graphic system. The typography is rendered as a dispersing point cloud, creating a visual noise that implies frequency and vibration. This aesthetic—hovering between structure and chaos—captures the dynamic atmosphere of the concerts, providing a fluid identity for both the poster and the motion design.",
+        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Editorial<span class='spec-sep'>|</span></span>In a city where Baroque grandeur collides with social invisibility, Perdus explores the rift between power and marginalization. Anchored at the Place des Victoires, the project weaves together visual scans, historical context, and social critique into a silent dialogue on decay, dignity, and inequality. It challenges the viewer to perceive Paris not merely as a museum of architecture, but as a stage for the pressing social realities of our time.",
+        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Postcard<span class='spec-sep'>|</span></span>Bypassing the scenic Mount Pilatus and the Chapel Bridge, this work focuses on Emil Manser. The goal was to capture the imperfect side of Lucerne: raw, loud, and authentic. Using Python, I built a custom generator that reconstructed Manser’s portrait entirely from the text of his famous street signs. The result is a digital synthesis of street philosophy and code—a postcard from the real city, far removed from the tourist gaze.",
+        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Ring Project<span class='spec-sep'>|</span></span>Focusing on the potential of discarded materials, Anell turns antique silverware into wearable objects. Each ring is unique, retaining the scratches and stamps of its previous life. This is the online home for the upcycling project I run with my brother. The focus here isn't on branding, but on simple reuse, taking discarded silverspoons and giving them a second life. <a href='https://anell.ch/' target='_blank' style='cursor: none !important; color: inherit; text-decoration: underline;'>anell.ch</a>",
+        "<span class='caption-specs'>2024<span class='spec-sep'>|</span>Object<span class='spec-sep'>|</span>This project investigates a pruning shear as a functional object through close observation, drawing, and material experimentation. I analyzed its form, mechanics, and ergonomics by producing detailed studies and translating them into print. A physical model of the object was then created to test scale and spatial presence. Finally, the tool’s effects were documented through controlled interventions on cardboard, making force, movement, and impact visible. The project approaches the everyday object as a system—where design, function, and material behavior are inseparable.</span>",
       ];
 
       // --- STATE ---
@@ -1139,6 +1149,11 @@
         state.isMuted = !state.isMuted;
         navSound.innerText = state.isMuted ? "unmute" : "mute";
 
+        // Sync all existing videos to new mute state
+        document.querySelectorAll("video").forEach((video) => {
+          video.muted = state.isMuted;
+        });
+
         if (!state.isMuted) {
           // Just unmuted -> Play ON
           soundOn.currentTime = 0;
@@ -1250,46 +1265,71 @@
         };
 
         img.onerror = () => {
-          // 2. Try Video (MP4)
-          const vid = document.createElement("video");
-          vid.className = className;
-          vid.muted = true;
-          vid.loop = true;
-          vid.autoplay = true;
-          vid.playsInline = true;
+          // 2. Try Fill Video (MP4) -> [name]fill.mp4
+          const vidFill = document.createElement("video");
+          vidFill.className = className;
+          vidFill.muted = state.isMuted;
+          vidFill.loop = true;
+          vidFill.autoplay = true;
+          vidFill.playsInline = true;
 
-          vid.onloadeddata = () => {
-            container.appendChild(vid);
-            vid.play().catch((e) => console.log("Auto-play prevented", e));
-            if (onSuccess) onSuccess(vid);
+          vidFill.style.objectFit = "cover";
+          vidFill.style.height = "100%";
+          vidFill.style.top = "0";
+
+          vidFill.onloadeddata = () => {
+            container.appendChild(vidFill);
+            vidFill.play().catch((e) => console.log("Auto-play prevented", e));
+            if (onSuccess) onSuccess(vidFill);
           };
 
-          vid.onerror = () => {
-            // 3. Try Rotated Video (-90.mp4)
-            const vidRot = document.createElement("video");
-            vidRot.className = className + " rotate-90";
-            vidRot.muted = true;
-            vidRot.loop = true;
-            vidRot.autoplay = true;
-            vidRot.playsInline = true;
+          vidFill.onerror = () => {
+            // 3. Try Standard Video (MP4) -> [name].mp4
+            const vid = document.createElement("video");
+            vid.className = className;
+            vid.muted = state.isMuted;
+            vid.loop = true;
+            vid.autoplay = true;
+            vid.playsInline = true;
 
-            vidRot.onloadeddata = () => {
-              container.appendChild(vidRot);
-              vidRot.play().catch((e) => console.log("Auto-play prevented", e));
-              if (onSuccess) onSuccess(vidRot);
+            vid.onloadeddata = () => {
+              container.appendChild(vid);
+              vid.play().catch((e) => console.log("Auto-play prevented", e));
+              if (onSuccess) onSuccess(vid);
             };
 
-            vidRot.onerror = () => {
-              // All failed
-              if (onError) onError();
+            vid.onerror = () => {
+              // 4. Try Rotated Video -> [name]-90.mp4
+              const vidRot = document.createElement("video");
+              vidRot.className = className + " rotate-90";
+              vidRot.muted = state.isMuted;
+              vidRot.loop = true;
+              vidRot.autoplay = true;
+              vidRot.playsInline = true;
+
+              vidRot.onloadeddata = () => {
+                container.appendChild(vidRot);
+                vidRot
+                  .play()
+                  .catch((e) => console.log("Auto-play prevented", e));
+                if (onSuccess) onSuccess(vidRot);
+              };
+
+              vidRot.onerror = () => {
+                // All failed
+                if (onError) onError();
+              };
+
+              const basePath = src.substring(0, src.lastIndexOf("."));
+              vidRot.src = basePath + "-90.mp4";
             };
 
             const basePath = src.substring(0, src.lastIndexOf("."));
-            vidRot.src = basePath + "-90.mp4";
+            vid.src = basePath + ".mp4";
           };
 
           const basePath = src.substring(0, src.lastIndexOf("."));
-          vid.src = basePath + ".mp4";
+          vidFill.src = basePath + "fill.mp4";
         };
 
         img.src = src;
@@ -1511,10 +1551,26 @@
         el.style.setProperty("--tx", state.currentTx + "px");
         el.style.setProperty("--ty", state.currentTy + "px");
 
-        // Button stays visible
+        // NEW: Update loader immediately if scaling while loading
+        refreshLoaderScale(el);
       });
 
-      // --- MOUSE MOVEMENT ---
+      // Helper to update loader scale
+      function refreshLoaderScale(element) {
+        const loader = element.querySelector(".slide-loader");
+        if (loader) {
+          let scaleVal = 1;
+          const cssScale = element.style.getPropertyValue("--target-scale");
+          if (cssScale) {
+            scaleVal = parseFloat(cssScale);
+          }
+          if (!scaleVal || isNaN(scaleVal)) scaleVal = 1;
+          loader.style.transform = `translate(-50%, -50%) scale(${
+            1 / scaleVal
+          })`;
+        }
+      }
+
       document.addEventListener("mousemove", (e) => {
         if (state.isMobile) return;
         if (state.isLoading) return;
@@ -1526,8 +1582,6 @@
         customCursor.style.top = cy + "px";
 
         let rotation = 0;
-
-        // Check hover state for Model Viewer
         const isOverModel = e.target.tagName.toLowerCase() === "model-viewer";
 
         if (state.isZoomed && state.zoomedElement) {
@@ -1538,22 +1592,19 @@
             cy >= rect.top &&
             cy <= rect.bottom
           ) {
-            // Inside box (Arrows)
             const relX = cx - rect.left;
             customCursor.innerHTML =
               relX < rect.width / 2 ? "&larr;" : "&rarr;";
             rotation = 0;
           } else {
-            // Outside box (Backdrop area) -> Close Cursor
             customCursor.innerHTML = "+";
-            rotation = 45; // Turns + into x
+            rotation = 45;
           }
         } else if (isOverModel) {
-          // Updated requirement: Use "+" when over model viewer
           customCursor.innerHTML = "+";
           rotation = 0;
         } else {
-          customCursor.innerHTML = "+"; // DEFAULT IS NOW "+"
+          customCursor.innerHTML = "+";
         }
 
         customCursor.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
@@ -1572,8 +1623,8 @@
           if (!state.isZoomed) e.preventDefault();
 
           const touch = e.touches[0];
-          const cx = touch.clientX; // Switched to clientX
-          const cy = touch.clientY; // Switched to clientY
+          const cx = touch.clientX;
+          const cy = touch.clientY;
           handleTrailLogic(cx, cy);
         },
         { passive: false }
@@ -1645,7 +1696,6 @@
         const container = document.createElement("div");
         container.className = "trail-image";
 
-        // Attach Sound to new boxes
         container.addEventListener("mouseenter", playHoverSound);
 
         const width = state.isMobile ? CONFIG.mobileBoxWidth : CONFIG.boxWidth;
@@ -1691,9 +1741,7 @@
           }
         });
 
-        // Play Zoom Sound on Click ONLY if not already zoomed
         container.addEventListener("click", () => {
-          // !state.isZoomed check added to prevent playing when skipping
           if (!state.isMuted && !state.isMobile && !state.isZoomed) {
             zoomSound.currentTime = 0;
             zoomSound.play().catch((e) => {});
@@ -1787,7 +1835,6 @@
         element.style.setProperty("--ty", "0px");
         element.classList.add("zoomed");
 
-        // SHOW SCALE BUTTON (and animate flicker)
         navScale.style.display = "block";
         navScale.classList.remove("flicker-anim");
       }
@@ -1881,19 +1928,20 @@
             if (reqId === state.slideRequestId) {
               const loader = document.createElement("div");
               loader.className = "slide-loader";
+
               loader.innerHTML = `
                        <div class="loading-rect"></div>
                        <div class="loading-rect"></div>
                        <div class="loading-rect"></div>
                        <div class="loading-rect"></div>
-                     `;
+                      `;
               state.zoomedElement.appendChild(loader);
               state.zoomedElement.classList.add("loading-active");
+
+              // NEW: Ensure correct scale on creation (Moved after appendChild to work correctly)
+              refreshLoaderScale(state.zoomedElement);
             }
           }, 300);
-        } else {
-          // If Auto-Skipping, we preserve existing loader if present.
-          // No action needed on DOM. Timeout persists from original call.
         }
 
         const url = gallery[nextIdx];
@@ -1931,11 +1979,10 @@
       }
 
       function zoomOut() {
-        // Sound First - Using New Instance for Immediate Playback
         if (!state.isMobile && !state.isMuted) {
           const s = new Audio("sounds/swoosh.mp3");
           s.volume = 1.0;
-          s.playbackRate = 1.8; // Make it shorter/faster
+          s.playbackRate = 1.8;
           s.play().catch((e) => {});
         }
 
