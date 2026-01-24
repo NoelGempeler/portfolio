@@ -246,6 +246,10 @@
         #nav-scale {
           display: none !important;
         }
+
+        .domain-text {
+          display: none;
+        }
       }
 
       .nav-text {
@@ -707,7 +711,7 @@
 
       <div id="nav-center" class="nav-text">
         <a href="mailto:ggg@gigergrafik.ch" target="_blank"
-          >ggg@gigergrafik.ch</a
+          >@<span class="domain-text">gigergrafik.ch</span></a
         >
       </div>
 
@@ -832,8 +836,8 @@
         const style = document.createElement("style");
         style.setAttribute("data-cursor-fix", "true");
         style.textContent = `
-             :host, :host *, * { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=='), none !important; caret-color: transparent !important; }
-             a, button, input, canvas, div, .container { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=='), none !important; }
+               :host, :host *, * { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=='), none !important; caret-color: transparent !important; }
+               a, button, input, canvas, div, .container { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=='), none !important; }
           `;
         shadowRoot.appendChild(style);
       }
@@ -884,12 +888,12 @@
 
       const projectFolders = [
         { name: "experimente", count: 21 },
-        { name: "bitwusst", count: 19 },
-        { name: "fotografik", count: 18 },
-        { name: "layout2", count: 22 },
-        { name: "london", count: 27 },
+        { name: "bitwusst", count: 16 },
+        { name: "fotografik", count: 14 },
+        { name: "layout2", count: 13 },
+        { name: "london", count: 26 },
         { name: "musikplakat", count: 8 },
-        { name: "paris", count: 25 },
+        { name: "paris", count: 18 },
         { name: "prepress", count: 8 },
         { name: "entwicklung", count: 7 },
         { name: "ringwebsite", count: 5 },
@@ -929,8 +933,8 @@
         "<span class='caption-specs'>Moving Poster<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>For this campaign, I used TouchDesigner to translate the concept of resonance into a graphic system. The typography is rendered as a dispersing point cloud, creating a visual noise that implies frequency and vibration. This aesthetic tries to capture the dynamic atmosphere of the concerts, providing a fluid identity for both the poster and the motion design.",
         "<span class='caption-specs'>Editorial<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>In a city where Baroque grandeur collides with social invisibility, PERDUS explores the rift between power and marginalization. Anchored at the Place des Victoires, the project weaves together street scans, historical context, and social critique into a dialogue. Working through absence rather than depiction, the publication is dedicated to those who remain unseen, present in the city, yet forgotten by it.",
         "<span class='caption-specs'>Postcard<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>Bypassing the scenic Mount Pilatus and the Chapel Bridge, this work focuses on street philosopher Emil Manser. The goal was to capture the imperfect side of Lucerne on a Postcard. Using Python, I built a custom generator that reconstructed Manser’s portrait from the text of his famous socialy critical street signs.",
-        "<span class='caption-specs'>Object Study<span class='spec-sep'>|</span>2023<span class='spec-sep'>|</span></span>This project focuses on the analytical drawing and conceptual investigation of a given object. I studied the pruning shear’s form, mechanics, surface structure, and materiality using perspectival drawings and print-based techniques. Visual experiments, technical tests, and material samples formed the basis for a physical model and impact studies on cardboard.  ",
-        "<span class='caption-specs'>Ring Project<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span>Focusing on the potential of discarded materials,<a href='https://anell.ch/' target='_blank' style='cursor: none !important; color: inherit; text-decoration: underline;'>anell.ch</a>turns antique silverware into wearable objects. Each ring is unique, retaining the scratches and stamps of its previous life. This is the yet unfinished online home for the upcycling project I run with my brother. The focus here isn't on branding, but on simple reuse, taking discarded silverspoons and giving them a second life. ",
+        "<span class='caption-specs'>Object Study<span class='spec-sep'>|</span>2023<span class='spec-sep'>|</span></span>This project focuses on the analytical drawing and conceptual investigation of a given object. I studied the pruning shear’s form, mechanics, surface structure, and materiality using perspectival drawings and print-based techniques. Visual experiments, technical tests, and material samples formed the basis for a physical model and impact studies on cardboard.  ",
+        "<span class='caption-specs'>Ring Project<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span>Focusing on the potential of discarded materials,<a href='https://anell.ch/' target='_blank' style='cursor: none !important; color: inherit; text-decoration: underline;'>anell.ch</a> turns antique silverware into wearable objects. Each ring is unique, retaining the scratches and stamps of its previous life. This is the yet unfinished online home for the upcycling project I run with my brother. The focus here isn't on branding, but on simple reuse, taking discarded silverspoons and giving them a second life. ",
       ];
 
       // --- STATE ---
@@ -1175,7 +1179,7 @@
       const resetInfo = () => {
         if (navCenter)
           navCenter.innerHTML =
-            '<a href="mailto:ggg@gigergrafik.ch" target="_blank">ggg@gigergrafik.ch</a>';
+            '<a href="mailto:ggg@gigergrafik.ch" target="_blank">@<span class="domain-text">gigergrafik.ch</span></a>';
         if (footerText) footerText.innerText = "";
       };
 
@@ -1737,7 +1741,8 @@
           const halfH = scaledH / 2;
 
           const footerRect = footerEl.getBoundingClientRect();
-          const limitBottom = footerRect.top - 10;
+          // Distance to about text set to 2px gap, matching desktop
+          const limitBottom = footerRect.top - 2;
 
           if (newCenterY + halfH > limitBottom) {
             newCenterY = limitBottom - halfH;
@@ -1893,20 +1898,17 @@
           const existingLoader =
             state.zoomedElement.querySelector(".slide-loader");
           if (existingLoader) existingLoader.remove();
-          state.zoomedElement.classList.remove("loading-active");
-
-          // Set new timeout
           state.loaderTimeout = setTimeout(() => {
             if (reqId === state.slideRequestId) {
               const loader = document.createElement("div");
               loader.className = "slide-loader";
 
               loader.innerHTML = `
-                       <div class="loading-rect"></div>
-                       <div class="loading-rect"></div>
-                       <div class="loading-rect"></div>
-                       <div class="loading-rect"></div>
-                      `;
+                               <div class="loading-rect"></div>
+                               <div class="loading-rect"></div>
+                               <div class="loading-rect"></div>
+                               <div class="loading-rect"></div>
+                              `;
               state.zoomedElement.appendChild(loader);
               state.zoomedElement.classList.add("loading-active");
 
