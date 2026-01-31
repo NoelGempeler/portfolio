@@ -1756,7 +1756,7 @@
 
           const footerRect = footerEl.getBoundingClientRect();
           // Distance to about text set to 2px gap, matching desktop
-          const limitBottom = footerRect.top - 3;
+          const limitBottom = footerRect.top - 2.5;
 
           if (newCenterY + halfH > limitBottom) {
             newCenterY = limitBottom - halfH;
