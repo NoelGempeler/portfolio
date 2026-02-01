@@ -844,9 +844,9 @@
         const style = document.createElement("style");
         style.setAttribute("data-cursor-fix", "true");
         style.textContent = `
-               :host, :host *, * { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=='), none !important; caret-color: transparent !important; }
-               a, button, input, canvas, div, .container { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=='), none !important; }
-          `;
+                 :host, :host *, * { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=='), none !important; caret-color: transparent !important; }
+                 a, button, input, canvas, div, .container { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=='), none !important; }
+            `;
         shadowRoot.appendChild(style);
       }
 
@@ -1334,6 +1334,7 @@
         state.aboutActive = true;
 
         navAbout.style.visibility = "hidden";
+        navHome.classList.add("g-mode");
 
         setTimeout(() => {
           aboutPage.classList.add("active");
@@ -1346,9 +1347,8 @@
         playToggleSound(e);
 
         // 2. Toggle 'g-mode'
-        navHome.classList.toggle("g-mode");
+        navHome.classList.remove("g-mode");
 
-        // Full Reset Logic
         if (state.aboutActive) {
           // Close About Page
           state.aboutActive = false;
@@ -1920,11 +1920,11 @@
               loader.className = "slide-loader";
 
               loader.innerHTML = `
-                               <div class="loading-rect"></div>
-                               <div class="loading-rect"></div>
-                               <div class="loading-rect"></div>
-                               <div class="loading-rect"></div>
-                              `;
+                                 <div class="loading-rect"></div>
+                                 <div class="loading-rect"></div>
+                                 <div class="loading-rect"></div>
+                                 <div class="loading-rect"></div>
+                                `;
               state.zoomedElement.appendChild(loader);
               state.zoomedElement.classList.add("loading-active");
 
