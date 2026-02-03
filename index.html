@@ -1053,46 +1053,6 @@
       checkMobile();
       window.addEventListener("resize", checkMobile);
 
-      if (state.isMobile) {
-        const enterOverlay = document.createElement("div");
-        enterOverlay.style.position = "fixed";
-        enterOverlay.style.top = "0";
-        enterOverlay.style.left = "0";
-        enterOverlay.style.width = "100%";
-        enterOverlay.style.height = "100%";
-        enterOverlay.style.zIndex = "99999";
-        // START CHANGE: Replaced solid background with radial gradient
-        enterOverlay.style.backgroundColor = "#ffffff";
-        enterOverlay.style.backgroundImage =
-          "radial-gradient(circle, rgba(0, 123, 255, 0.4) 0%, #ffffff 70%)";
-        // END CHANGE
-        enterOverlay.style.display = "flex";
-        enterOverlay.style.alignItems = "center";
-        enterOverlay.style.justifyContent = "center";
-        enterOverlay.style.cursor = "pointer";
-
-        const text = document.createElement("div");
-        text.innerText = "click to enter";
-        text.style.fontFamily = '"Programme", sans-serif';
-        text.style.fontSize = "1rem";
-        text.style.pointerEvents = "none";
-
-        enterOverlay.appendChild(text);
-        document.body.appendChild(enterOverlay);
-
-        enterOverlay.addEventListener("click", () => {
-          state.isMuted = false;
-          if (navSound) navSound.innerText = "mute";
-
-          soundOn.currentTime = 0;
-          soundOn.play().catch((e) => {});
-
-          enterOverlay.style.transition = "opacity 0.5s ease";
-          enterOverlay.style.opacity = "0";
-          setTimeout(() => enterOverlay.remove(), 500);
-        });
-      }
-
       function preloadAllCovers() {
         let loadedCount = 0;
         const total = GALLERIES.length;
@@ -1315,7 +1275,7 @@
         img.onerror = () => {
           const vidFill = document.createElement("video");
           vidFill.className = className;
-          vidFill.muted = state.isMuted;
+          vidFill.muted = true;
           vidFill.loop = true;
           vidFill.autoplay = true;
           vidFill.playsInline = true;
@@ -1326,28 +1286,42 @@
 
           vidFill.onloadeddata = () => {
             container.appendChild(vidFill);
-            vidFill.play().catch((e) => console.log("Auto-play prevented", e));
+            vidFill
+              .play()
+              .then(() => {
+                if (!state.isMuted && !state.isMobile) {
+                  vidFill.muted = false;
+                }
+              })
+              .catch((e) => console.log("Auto-play prevented", e));
             if (onSuccess) onSuccess(vidFill);
           };
 
           vidFill.onerror = () => {
             const vid = document.createElement("video");
             vid.className = className;
-            vid.muted = state.isMuted;
+            vid.muted = true;
             vid.loop = true;
             vid.autoplay = true;
             vid.playsInline = true;
 
             vid.onloadeddata = () => {
               container.appendChild(vid);
-              vid.play().catch((e) => console.log("Auto-play prevented", e));
+              vid
+                .play()
+                .then(() => {
+                  if (!state.isMuted && !state.isMobile) {
+                    vid.muted = false;
+                  }
+                })
+                .catch((e) => console.log("Auto-play prevented", e));
               if (onSuccess) onSuccess(vid);
             };
 
             vid.onerror = () => {
               const vidRot = document.createElement("video");
               vidRot.className = className + " rotate-90";
-              vidRot.muted = state.isMuted;
+              vidRot.muted = true;
               vidRot.loop = true;
               vidRot.autoplay = true;
               vidRot.playsInline = true;
@@ -1356,6 +1330,11 @@
                 container.appendChild(vidRot);
                 vidRot
                   .play()
+                  .then(() => {
+                    if (!state.isMuted && !state.isMobile) {
+                      vidRot.muted = false;
+                    }
+                  })
                   .catch((e) => console.log("Auto-play prevented", e));
                 if (onSuccess) onSuccess(vidRot);
               };
