@@ -18,7 +18,6 @@
     ></script>
     <link rel="icon" type="image/webp" href="bilder/kopf1.webp" />
     <style>
-      /* --- custom fonts --- */
       @font-face {
         font-family: "Programme";
         src: url("Programme-Regular/Programme-Regular.eot");
@@ -32,6 +31,13 @@
         font-display: swap;
       }
 
+      /* FIX 1: overscroll on html prevents pull-to-refresh on iOS/Android */
+      html {
+        overscroll-behavior: none;
+        overscroll-behavior-y: none;
+        height: 100%;
+      }
+
       html,
       body {
         margin: 0;
@@ -42,13 +48,12 @@
         font-family: "Programme", sans-serif;
         overflow: hidden;
         font-size: 1rem;
-
         cursor: none !important;
-
         user-select: none !important;
         -webkit-user-select: none !important;
-
         overscroll-behavior: none;
+        /* FIX 2: prevent horizontal navigation swipe on iOS Safari */
+        overscroll-behavior-x: none;
         touch-action: none;
       }
 
@@ -127,11 +132,12 @@
       #canvas {
         position: relative;
         width: 100vw;
-        height: 100vh;
         height: 100dvh;
         overflow: hidden;
         background-color: #ffffff;
         transition: opacity 0.4s ease;
+        /* FIX 3: explicit touch-action on canvas */
+        touch-action: none;
       }
 
       #about-page {
@@ -181,7 +187,6 @@
         box-shadow:
           0px 3px 10px 3px rgba(0, 0, 0, 0.5),
           0px 0px 5px 1px rgba(0, 0, 0, 0.6);
-
         background-color: rgba(0, 0, 0, 0.5);
         z-index: 50;
       }
@@ -329,7 +334,6 @@
         opacity: 1;
       }
 
-      /* --------------------------------- FOOTER ----------------------------------- */
       footer {
         position: fixed;
         bottom: 5px;
@@ -399,7 +403,9 @@
           overflow-y: auto;
           overflow-x: hidden;
           -webkit-overflow-scrolling: touch;
-          touch-action: auto !important;
+          /* FIX 4: allow scrolling in about page, contain overscroll so it doesn't bubble up */
+          touch-action: pan-y !important;
+          overscroll-behavior: contain;
         }
 
         #about-page model-viewer {
@@ -561,7 +567,6 @@
         pointer-events: auto;
       }
 
-      /* --- ANIMATIONS --- */
       .animate-enter-right {
         animation: slideInRight 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
       }
@@ -714,7 +719,6 @@
         ><span class="char-other">k</span>
       </div>
 
-      <!-------------- Über--------- -->
       <div id="nav-about" class="nav-text">about</div>
 
       <div id="nav-center" class="nav-text">
@@ -752,7 +756,6 @@
         <div class="progress-bar hide" slot="progress-bar">
           <div class="update-bar"></div>
         </div>
-
         <div slot="interaction-prompt"></div>
       </model-viewer>
 
@@ -764,15 +767,15 @@
               >|</span
             ></span
           >
-          I’m a designer who loves exploring the experimental side of visual
+          I'm a designer who loves exploring the experimental side of visual
           communication. My practice is shaped by curiosity, both visually and
-          technically. I’m drawn to unusual aesthetics, generative ideas, and
-          graphic systems that challenge conventional expectations. Whether it’s
+          technically. I'm drawn to unusual aesthetics, generative ideas, and
+          graphic systems that challenge conventional expectations. Whether it's
           through layouts that subvert traditional hierarchy, typography that
           behaves more like a living organism, or mixing analog and digital
           processes, I enjoy pushing my work into territories that feel a little
           unfamiliar and unpredictable. I see design not only as a craft, but as
-          a tool for dialogue and reflection. I’m fascinated by how visual
+          a tool for dialogue and reflection. I'm fascinated by how visual
           language can amplify underrepresented voices, provoke thought, or make
           people aware of the structures that surround them. I like to observe
           the world with a critical eye and let those impressions influence the
@@ -859,13 +862,12 @@
 
       function injectShadowStyles(shadowRoot) {
         if (shadowRoot.querySelector("style[data-cursor-fix]")) return;
-
         const style = document.createElement("style");
         style.setAttribute("data-cursor-fix", "true");
         style.textContent = `
-                 :host, :host *, * { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=="), none !important; caret-color: transparent !important; }
-                 a, button, input, canvas, div, .container { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=="), none !important; }
-            `;
+          :host, :host *, * { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=="), none !important; caret-color: transparent !important; }
+          a, button, input, canvas, div, .container { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=="), none !important; }
+        `;
         shadowRoot.appendChild(style);
       }
 
@@ -932,7 +934,6 @@
         const folder = projectFolders[i].name;
         const limit = projectFolders[i].count;
         const arr = [`bilder/${folder}/${folder}cover.webp`];
-
         for (let j = 1; j <= limit; j++) {
           arr.push(`bilder/${folder}/${j}.webp`);
         }
@@ -951,25 +952,22 @@
         "GARDEN SCISSORS",
         "TAT",
         "ANELL",
-
         "DIGITAL SCANS",
       ];
 
       const CAPTIONS = [
-        "<span class='caption-specs'>Archive<span class='spec-sep'>|</span>20xx<span class='spec-sep'>|</span></span>A sandbox for creative coding and visual curiosity. Ranging from interactive TouchDesigner jams to generative experiments, this is where I hunt for weird textures and unexpected aesthetics. It’s a space to play, break algorithms, and embrace happy accidents, treating code like a messy material to see what strange visuals come out the other side.",
+        "<span class='caption-specs'>Archive<span class='spec-sep'>|</span>20xx<span class='spec-sep'>|</span></span>A sandbox for creative coding and visual curiosity. Ranging from interactive TouchDesigner jams to generative experiments, this is where I hunt for weird textures and unexpected aesthetics. It's a space to play, break algorithms, and embrace happy accidents, treating code like a messy material to see what strange visuals come out the other side.",
         "<span class='caption-specs'>Poster<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>BITWUSST? acts as an interface between scientific <a href='bilder/report_bitwusst.pdf' download style='cursor: none !important; color: inherit; text-decoration: underline;'>theory</a> and visual communication. Comprising a report and an accompanying poster, the project traces a spectrum of consciousness extending from atoms to algorithms. Grounded in Integrated Information Theory and Panpsychism, it investigates whether awareness is a fundamental property of matter itself or merely a result of complex processing. The work questions if feeling necessitates biological flesh, or if digital sensors can generate genuine presence. Ultimately, BITWUSST? encourages a quiet reflection on the nature of reality and Consciousness.",
         "<span class='caption-specs'>Print<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>Serving as a visual evolution of the BITWUSST? project, this work translates the initial theoretical inquiry into a more material outcome. Centered around a newspaper publication and a photogram series with analog studies of form. The imagery captures a spectrum of materials ranging from organic elements like leaves, grass, and seeds to synthetic artifacts like cables and generated neural networks. By treating both the botanical and the technical with the same darkroom process, the work creates a unified texture where nature and technology come together.",
         "<span class='caption-specs'>Editorial<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>One day, one class, 12 stories. For the interdisciplinary project 24 Hours, I created a system that translates time into structure. Using a grid of 24 rows and 60 columns, representing every hour and minute. The grid dictates where the images are located, physically displacing and reorganizing the typography around them. It is a visual study of time, rhythm, and tension between content and form.",
         "<span class='caption-specs'>Editorial<span class='spec-sep'>|</span>2025<span class='spec-sep'>|</span></span>London is usually mapped by human needs, but for this collaborative publication, we shifted the narrative. Exploring the city through the senses of 88 different species, from the peregrine falcon surveying the Thames to the urban fox navigating by scent. The project challenges our anthropocentric view of the metropolis. Each student adopted the perspective of a specific animal, visualizing how landmarks become obstacles and streets become hunting grounds. The resulting book is a collective portrait of a hidden London, documenting the impossible but necessary attempt to see the city through eyes other than our own.",
         "<span class='caption-specs'>Moving Poster<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>For this campaign, I used TouchDesigner to translate the concept of resonance into a graphic system. The typography is rendered as a dispersing point cloud, creating a visual noise that implies frequency and vibration. This aesthetic tries to capture the dynamic atmosphere of the concerts, providing a fluid identity for both the poster and the motion design.",
         "<span class='caption-specs'>Editorial<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>In a city where Baroque grandeur collides with social invisibility, PERDUS explores the rift between power and marginalization. Anchored at the Place des Victoires, the project weaves together street scans, historical context, and social critique into a dialogue. Working through absence rather than depiction, the publication is dedicated to those who remain unseen, present in the city, yet forgotten by it.",
-        "<span class='caption-specs'>Postcard<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>Bypassing the scenic Mount Pilatus and the Chapel Bridge, this work focuses on street philosopher Emil Manser. The goal was to capture the imperfect side of Lucerne on a Postcard. Using Python, I built a custom generator that reconstructed Manser’s portrait from the text of his famous socialy critical street signs.",
-        "<span class='caption-specs'>Object Study<span class='spec-sep'>|</span>2023<span class='spec-sep'>|</span></span>This project focuses on the analytical drawing and conceptual investigation of a given object. I studied the pruning shear’s form, mechanics, surface structure, and materiality using perspectival drawings and print-based techniques. Visual experiments, technical tests, and material samples formed the basis for a physical model and impact studies on cardboard.  ",
-        "<span class='caption-specs'>Latent Study<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span> A generative study using StreamDiffusion and TouchDesigner. The project utilizes my grandfather’s archive of nature photography, ranging from fungi and trees to flowers as visual anchors. Crucially, each photo is paired with the unique poem he wrote for it, creating a dataset defined by deep personal connection. In the system, the translated text of each poem acts as the specific semantic driver for its paired image, steering the trajectory within the neural network. By manipulating the parameters live, the installation reveals this morphing process, a continuous latent walk that navigates the distance between the image of the plant and the emotional reality of the poem.",
-
-        "<span class='caption-specs'>Ring Project<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span>Focusing on the potential of discarded materials, <a href='https://anell.ch/' target='_blank' style='cursor: none !important; color: inherit; text-decoration: underline;'>anell.ch</a> turns antique silverware into wearable objects. Each ring is unique, retaining the scratches and stamps of its previous life. This is the yet unfinished online home for the upcycling project I run with my brother. The focus here isn't on branding, but on simple reuse, taking discarded silverspoons and giving them a second life. ",
-
-        "<span class='caption-specs'>Scans<span class='spec-sep'>|</span>2025<span class='spec-sep'>|</span></span> Visual study of connection beetween a hand scanner and digital moving screens. Contains series of digital scansof the movie All About Lily Chou-Chou. ",
+        "<span class='caption-specs'>Postcard<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>Bypassing the scenic Mount Pilatus and the Chapel Bridge, this work focuses on street philosopher Emil Manser. The goal was to capture the imperfect side of Lucerne on a Postcard. Using Python, I built a custom generator that reconstructed Manser's portrait from the text of his famous socialy critical street signs.",
+        "<span class='caption-specs'>Object Study<span class='spec-sep'>|</span>2023<span class='spec-sep'>|</span></span>This project focuses on the analytical drawing and conceptual investigation of a given object. I studied the pruning shear's form, mechanics, surface structure, and materiality using perspectival drawings and print-based techniques. Visual experiments, technical tests, and material samples formed the basis for a physical model and impact studies on cardboard.",
+        "<span class='caption-specs'>Latent Study<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span> A generative study using StreamDiffusion and TouchDesigner. The project utilizes my grandfather's archive of nature photography, ranging from fungi and trees to flowers as visual anchors. Crucially, each photo is paired with the unique poem he wrote for it, creating a dataset defined by deep personal connection. In the system, the translated text of each poem acts as the specific semantic driver for its paired image, steering the trajectory within the neural network. By manipulating the parameters live, the installation reveals this morphing process, a continuous latent walk that navigates the distance between the image of the plant and the emotional reality of the poem.",
+        "<span class='caption-specs'>Ring Project<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span>Focusing on the potential of discarded materials, <a href='https://anell.ch/' target='_blank' style='cursor: none !important; color: inherit; text-decoration: underline;'>anell.ch</a> turns antique silverware into wearable objects. Each ring is unique, retaining the scratches and stamps of its previous life. This is the yet unfinished online home for the upcycling project I run with my brother. The focus here isn't on branding, but on simple reuse, taking discarded silverspoons and giving them a second life.",
+        "<span class='caption-specs'>Scans<span class='spec-sep'>|</span>2025<span class='spec-sep'>|</span></span> Visual study of connection beetween a hand scanner and digital moving screens. Contains series of digital scansof the movie All About Lily Chou-Chou.",
       ];
 
       // --- STATE ---
@@ -998,10 +996,14 @@
         currentTx: 0,
         currentTy: 0,
         slideRequestId: 0,
-
         isMuted: true,
         clickAlt: false,
       };
+
+      // FIX 5: track whether a touch became a drag so we never fire
+      // accidental tap-zoom events mid-drawing
+      let touchMoved = false;
+      let touchStartTime = 0;
 
       const HOVER_POOL_SIZE = 10;
       const hoverPool = [];
@@ -1016,13 +1018,10 @@
 
       const soundOn = new Audio("sounds/on.mp3");
       soundOn.preload = "auto";
-
       const soundOff = new Audio("sounds/off.mp3");
       soundOff.preload = "auto";
-
       const zoomSound = new Audio("sounds/zoom.mp3");
       zoomSound.preload = "auto";
-
       const skipSound = new Audio("sounds/skip.mp3");
       skipSound.preload = "auto";
 
@@ -1042,7 +1041,6 @@
       const expandBtn = document.getElementById("expand-btn");
       const swipeHintEl = document.getElementById("swipe-hint");
 
-      // ////////////MOBILE INIT ---
       const checkMobile = () => {
         if (window.innerWidth < 800) {
           state.isMobile = true;
@@ -1057,8 +1055,8 @@
         let loadedCount = 0;
         const total = GALLERIES.length;
         const dots = document.querySelectorAll(".loading-rect");
-
         let finished = false;
+
         function finishLoading() {
           if (finished) return;
           finished = true;
@@ -1101,42 +1099,33 @@
       function playHoverSound() {
         if (state.isMobile) return;
         if (state.isMuted) return;
-
         const now = Date.now();
         const delta = now - lastHoverTime;
         lastHoverTime = now;
-
         const sound = hoverPool[hoverPoolIndex];
         hoverPoolIndex = (hoverPoolIndex + 1) % HOVER_POOL_SIZE;
-
         sound.pause();
         sound.currentTime = 0;
-
         if (delta < 200) {
-          const rate = 1 + Math.max(0, (200 - delta) / 200);
-          sound.playbackRate = rate;
+          sound.playbackRate = 1 + Math.max(0, (200 - delta) / 200);
         } else {
           sound.playbackRate = 1;
         }
-
-        sound.play().catch((e) => {});
+        sound.play().catch(() => {});
       }
 
       function playToggleSound(e) {
         if (state.isMobile) return;
         if (state.isMuted) return;
-
         const el = e.currentTarget;
-
         const currentState = el.dataset.soundState || "off";
-
         if (currentState === "on") {
           soundOff.currentTime = 0;
-          soundOff.play().catch((e) => {});
+          soundOff.play().catch(() => {});
           el.dataset.soundState = "off";
         } else {
           soundOn.currentTime = 0;
-          soundOn.play().catch((e) => {});
+          soundOn.play().catch(() => {});
           el.dataset.soundState = "on";
         }
       }
@@ -1144,11 +1133,9 @@
       navSound.addEventListener("click", () => {
         state.isMuted = !state.isMuted;
         navSound.innerText = state.isMuted ? "unmute" : "mute";
-
         document.querySelectorAll("video").forEach((video) => {
           video.muted = state.isMuted;
         });
-
         if (!state.isMuted) {
           soundOn.currentTime = 0;
           soundOn
@@ -1157,10 +1144,10 @@
               soundOn.pause();
               soundOn.currentTime = 0;
             })
-            .catch((e) => {});
+            .catch(() => {});
         } else {
           soundOff.currentTime = 0;
-          soundOff.play().catch((e) => {});
+          soundOff.play().catch(() => {});
         }
       });
 
@@ -1192,22 +1179,24 @@
         modelViewer.addEventListener("progress", onProgress);
       }
 
-      // --------------- MOBILE SCROLL SYNC ---------------------
-      aboutPage.addEventListener("scroll", (e) => {
-        if (state.isMobile) {
-          const scrollTop = aboutPage.scrollTop;
-          const rotation = -scrollTop * 0.005;
-          const orbit = modelViewer.getCameraOrbit();
-          modelViewer.cameraOrbit = `${rotation}rad ${orbit.phi}rad ${orbit.radius}m`;
+      // FIX 6: guard getCameraOrbit with try/catch so errors don't bubble
+      aboutPage.addEventListener("scroll", () => {
+        if (state.isMobile && modelViewer) {
+          try {
+            const scrollTop = aboutPage.scrollTop;
+            const rotation = -scrollTop * 0.005;
+            const orbit = modelViewer.getCameraOrbit();
+            if (orbit) {
+              modelViewer.cameraOrbit = `${rotation}rad ${orbit.phi}rad ${orbit.radius}m`;
+            }
+          } catch (err) {}
         }
       });
 
-      // ------------------ HELPER FUNCTIONS ------------------
       const updateInfo = (boxId) => {
         const projName = PROJECT_NAMES[boxId - 1] || "";
         if (navCenter) navCenter.innerText = projName;
         const caption = CAPTIONS[boxId - 1] || "";
-        // Use innerHTML to render links
         if (footerText) footerText.innerHTML = caption;
       };
 
@@ -1218,14 +1207,11 @@
         if (footerText) footerText.innerText = "";
       };
 
-      // --------------- SWIPE HINT LOGIC -----------------
       let swipeTimer = null;
 
       function startSwipeHintTimer() {
         if (!state.isMobile || !state.isZoomed) return;
-
         if (state.currentSlideIndex !== 0) return;
-
         clearTimeout(swipeTimer);
         swipeTimer = setTimeout(() => {
           if (state.isZoomed && state.currentSlideIndex === 0) {
@@ -1279,7 +1265,6 @@
           vidFill.loop = true;
           vidFill.autoplay = true;
           vidFill.playsInline = true;
-
           vidFill.style.objectFit = "cover";
           vidFill.style.height = "100%";
           vidFill.style.top = "0";
@@ -1289,11 +1274,9 @@
             vidFill
               .play()
               .then(() => {
-                if (!state.isMuted && !state.isMobile) {
-                  vidFill.muted = false;
-                }
+                if (!state.isMuted && !state.isMobile) vidFill.muted = false;
               })
-              .catch((e) => console.log("Auto-play prevented", e));
+              .catch(() => {});
             if (onSuccess) onSuccess(vidFill);
           };
 
@@ -1310,11 +1293,9 @@
               vid
                 .play()
                 .then(() => {
-                  if (!state.isMuted && !state.isMobile) {
-                    vid.muted = false;
-                  }
+                  if (!state.isMuted && !state.isMobile) vid.muted = false;
                 })
-                .catch((e) => console.log("Auto-play prevented", e));
+                .catch(() => {});
               if (onSuccess) onSuccess(vid);
             };
 
@@ -1331,16 +1312,13 @@
                 vidRot
                   .play()
                   .then(() => {
-                    if (!state.isMuted && !state.isMobile) {
-                      vidRot.muted = false;
-                    }
+                    if (!state.isMuted && !state.isMobile) vidRot.muted = false;
                   })
-                  .catch((e) => console.log("Auto-play prevented", e));
+                  .catch(() => {});
                 if (onSuccess) onSuccess(vidRot);
               };
 
               vidRot.onerror = () => {
-                // All failed
                 if (onError) onError();
               };
 
@@ -1359,7 +1337,7 @@
         img.src = src;
       }
 
-      // --- NAVIGATION EVENTS ---
+      // --- NAVIGATION ---
       navAbout.addEventListener("click", () => {
         resetInfo();
         if (state.isZoomed) {
@@ -1370,10 +1348,8 @@
         }
         canvas.classList.add("hidden-canvas");
         state.aboutActive = true;
-
         navAbout.style.visibility = "hidden";
         navHome.classList.add("g-mode");
-
         setTimeout(() => {
           aboutPage.classList.add("active");
           setTimeout(() => (aboutPage.style.opacity = "1"), 10);
@@ -1381,17 +1357,11 @@
       });
 
       navHome.addEventListener("click", (e) => {
-        // 1. Play Sound
         playToggleSound(e);
-
-        // 2. Toggle 'g-mode'
         navHome.classList.remove("g-mode");
-
         if (state.aboutActive) {
-          // Close About Page
           state.aboutActive = false;
           aboutPage.style.opacity = "0";
-
           setTimeout(() => {
             aboutPage.classList.remove("active");
             canvas.classList.remove("hidden-canvas");
@@ -1403,7 +1373,6 @@
             window.scrollTo(0, 0);
           }, 400);
         } else if (state.isZoomed) {
-          // Zoom out naturally then reset
           zoomOut();
           setTimeout(() => {
             resetTrail();
@@ -1415,10 +1384,8 @@
         }
       });
 
-      // --------------- INFINITE SCALE LOGIC ------------
       navScale.addEventListener("click", () => {
         if (!state.zoomedElement || state.isMobile) return;
-
         navScale.classList.remove("flicker-anim");
 
         const el = state.zoomedElement;
@@ -1513,13 +1480,6 @@
             ratios.push({ r: (currentH + spaceTop) / currentH, type: "h" });
           if (spaceLeft > 1)
             ratios.push({ r: (currentW + spaceLeft) / currentW, type: "w" });
-        } else {
-          const minSpace = Math.min(
-            spaceTop,
-            spaceBottom,
-            spaceLeft,
-            spaceRight,
-          );
         }
 
         ratios = ratios.filter((item) => item.r > 1.005);
@@ -1565,36 +1525,28 @@
 
         state.currentTx += dX;
         state.currentTy += dY;
-
         el.style.setProperty("--target-scale", nextScale);
         el.style.setProperty("--tx", state.currentTx + "px");
         el.style.setProperty("--ty", state.currentTy + "px");
-
         refreshLoaderScale(el);
       });
 
       function refreshLoaderScale(element) {
         const loader = element.querySelector(".slide-loader");
         if (loader) {
-          let scaleVal = 1;
-          const cssScale = element.style.getPropertyValue("--target-scale");
-          if (cssScale) {
-            scaleVal = parseFloat(cssScale);
-          }
+          let scaleVal = parseFloat(
+            element.style.getPropertyValue("--target-scale"),
+          );
           if (!scaleVal || isNaN(scaleVal)) scaleVal = 1;
-          loader.style.transform = `translate(-50%, -50%) scale(${
-            1 / scaleVal
-          })`;
+          loader.style.transform = `translate(-50%, -50%) scale(${1 / scaleVal})`;
         }
       }
 
       document.addEventListener("mousemove", (e) => {
         if (state.isMobile) return;
         if (state.isLoading) return;
-
         const cx = e.clientX;
         const cy = e.clientY;
-
         customCursor.style.left = cx + "px";
         customCursor.style.top = cy + "px";
 
@@ -1628,30 +1580,41 @@
         handleTrailLogic(cx, cy);
       });
 
+      // FIX 7: touchmove — always preventDefault on mobile canvas to block
+      // pull-to-refresh and iOS back/forward swipe gestures
       document.addEventListener(
         "touchmove",
         (e) => {
+          if (!state.isMobile) return;
+
+          // Let the about page scroll freely
           if (state.aboutActive) return;
 
+          // Always block default for non-model-viewer touches — this is the
+          // key fix that stops iOS pull-to-refresh during trail drawing
+          if (!e.target.closest("model-viewer")) {
+            e.preventDefault();
+          }
+
           if (e.target.closest("model-viewer") || state.isZoomed) return;
-          if (!state.isMobile) return;
           if (state.isLoading) return;
 
-          if (!state.isZoomed) e.preventDefault();
-
+          touchMoved = true;
           const touch = e.touches[0];
-          const cx = touch.clientX;
-          const cy = touch.clientY;
-          handleTrailLogic(cx, cy);
+          handleTrailLogic(touch.clientX, touch.clientY);
         },
         { passive: false },
       );
 
+      // FIX 8: touchstart resets the drag-tracking flag
       document.addEventListener(
         "touchstart",
         (e) => {
+          if (state.aboutActive) return;
           if (e.target.closest("model-viewer") || state.isZoomed) return;
           if (!state.isMobile) return;
+          touchMoved = false;
+          touchStartTime = Date.now();
           const touch = e.touches[0];
           state.lastX = touch.clientX;
           state.lastY = touch.clientY;
@@ -1676,7 +1639,14 @@
         }
       }
 
+      // FIX 9: skip click if it followed a drag — prevents accidental zoom
+      // after drawing a trail on mobile
       canvas.addEventListener("click", (e) => {
+        if (state.isMobile && touchMoved) {
+          touchMoved = false;
+          return;
+        }
+
         const target = e.target.closest(".trail-image");
         if (target && !state.isZoomed) {
           zoomIn(target);
@@ -1712,7 +1682,6 @@
         const boxId = state.count;
         const container = document.createElement("div");
         container.className = "trail-image";
-
         container.addEventListener("mouseenter", playHoverSound);
 
         const width = state.isMobile ? CONFIG.mobileBoxWidth : CONFIG.boxWidth;
@@ -1721,23 +1690,20 @@
           : CONFIG.boxHeight;
         container.style.width = width + "px";
         container.style.height = height + "px";
-
-        if (state.isMobile) {
-          container.style.setProperty("--idle-scale", CONFIG.mobileScale);
-        } else {
-          container.style.setProperty("--idle-scale", 1);
-        }
+        container.style.setProperty(
+          "--idle-scale",
+          state.isMobile ? CONFIG.mobileScale : 1,
+        );
 
         const galleryIndex = (state.count - 1) % GALLERIES.length;
         container.dataset.galleryIndex = galleryIndex;
         container.dataset.slideIndex = 0;
         container.dataset.boxId = boxId;
 
-        const coverUrl = GALLERIES[galleryIndex][0];
         loadMedia(
-          coverUrl,
+          GALLERIES[galleryIndex][0],
           container,
-          (el) => {},
+          () => {},
           () => {
             container.style.backgroundColor = "#e5e7eb";
             container.style.border = "1px solid #9ca3af";
@@ -1746,22 +1712,20 @@
 
         container.style.left = `${x}px`;
         container.style.top = `${y}px`;
+
         container.addEventListener("mouseenter", () => {
           if (!state.isZoomed) {
-            const projName = PROJECT_NAMES[boxId - 1] || "";
-            if (navCenter) navCenter.innerText = projName;
+            navCenter.innerText = PROJECT_NAMES[boxId - 1] || "";
           }
         });
         container.addEventListener("mouseleave", () => {
-          if (!state.isZoomed) {
-            resetInfo();
-          }
+          if (!state.isZoomed) resetInfo();
         });
 
         container.addEventListener("click", () => {
           if (!state.isMuted && !state.isMobile && !state.isZoomed) {
             zoomSound.currentTime = 0;
-            zoomSound.play().catch((e) => {});
+            zoomSound.play().catch(() => {});
           }
         });
 
@@ -1774,36 +1738,32 @@
         state.currentGalleryIndex = parseInt(element.dataset.galleryIndex);
         state.currentSlideIndex = parseInt(element.dataset.slideIndex);
         updateInfo(parseInt(element.dataset.boxId));
-
         preloadNeighbors(state.currentGalleryIndex, state.currentSlideIndex);
         document.body.classList.add("zoomed-active");
 
-        const siblings = document.querySelectorAll(".trail-image");
-        siblings.forEach((sib) => {
+        document.querySelectorAll(".trail-image").forEach((sib) => {
           if (sib !== element) sib.classList.add("faded");
         });
 
         if (state.isMobile) {
           const vpW = window.innerWidth;
-          const currentW = parseFloat(element.style.width);
+          const currentW =
+            parseFloat(element.style.width) || CONFIG.mobileBoxWidth;
           const scale = (vpW / currentW) * 1.005;
           state.currentMobileScale = scale;
 
           const newCenterX = vpW / 2;
           let newCenterY = parseFloat(element.style.top);
-          const scaledH = parseFloat(element.style.height) * scale;
+          const scaledH =
+            (parseFloat(element.style.height) || CONFIG.mobileBoxHeight) *
+            scale;
           const halfH = scaledH / 2;
-
           const footerRect = footerEl.getBoundingClientRect();
-          // Distance to about text set to 2px gap, matching desktop
           const limitBottom = footerRect.top - 2.5;
 
-          if (newCenterY + halfH > limitBottom) {
+          if (newCenterY + halfH > limitBottom)
             newCenterY = limitBottom - halfH;
-          }
-          if (newCenterY - halfH < 0) {
-            newCenterY = 0 + halfH;
-          }
+          if (newCenterY - halfH < 0) newCenterY = halfH;
 
           element.style.left = newCenterX + "px";
           element.style.top = newCenterY + "px";
@@ -1814,52 +1774,45 @@
           swipeHintEl.style.top = newCenterY + "px";
 
           addSwipeListener(element);
-
-          // Start timer for swipe hint
           startSwipeHintTimer();
-
           return;
         }
 
         const canvasW = canvas.offsetWidth;
-        const canvasH = canvas.offsetHeight;
         const footerRect = footerEl.getBoundingClientRect();
         const limitBottom = footerRect.top - 3;
-
         const currentW = parseFloat(element.style.width);
         const currentH = parseFloat(element.style.height);
-        const halfW = currentW / 2;
-        const halfH = currentH / 2;
         const centerX = parseFloat(element.style.left);
         const centerY = parseFloat(element.style.top);
 
-        const distTop = centerY;
-        const distBottom = limitBottom - centerY;
-        const distLeft = centerX;
-        const distRight = canvasW - centerX;
+        const finalScale = Math.min(
+          centerY / (currentH / 2),
+          (limitBottom - centerY) / (currentH / 2),
+          centerX / (currentW / 2),
+          (canvasW - centerX) / (currentW / 2),
+        );
 
-        const sTop = distTop / halfH;
-        const sBottom = distBottom / halfH;
-        const sLeft = distLeft / halfW;
-        const sRight = distRight / halfW;
-
-        const finalScale = Math.min(sTop, sBottom, sLeft, sRight);
         state.currentScale = finalScale;
         state.currentTx = 0;
         state.currentTy = 0;
 
+        const distTop = centerY / (currentH / 2);
+        const distBottom = (limitBottom - centerY) / (currentH / 2);
+        const distLeft = centerX / (currentW / 2);
+        const distRight = (canvasW - centerX) / (currentW / 2);
+
         let anchor = "";
-        if (Math.abs(finalScale - sTop) < 0.01) anchor = "top";
-        else if (Math.abs(finalScale - sBottom) < 0.01) anchor = "bottom";
-        else if (Math.abs(finalScale - sLeft) < 0.01) anchor = "left";
-        else if (Math.abs(finalScale - sRight) < 0.01) anchor = "right";
+        if (Math.abs(finalScale - distTop) < 0.01) anchor = "top";
+        else if (Math.abs(finalScale - distBottom) < 0.01) anchor = "bottom";
+        else if (Math.abs(finalScale - distLeft) < 0.01) anchor = "left";
+        else if (Math.abs(finalScale - distRight) < 0.01) anchor = "right";
         state.anchorEdge = anchor;
 
         element.style.setProperty("--target-scale", finalScale);
         element.style.setProperty("--tx", "0px");
         element.style.setProperty("--ty", "0px");
         element.classList.add("zoomed");
-
         navScale.style.display = "block";
         navScale.classList.remove("flicker-anim");
       }
@@ -1870,13 +1823,8 @@
 
         const handleTouchMove = (e) => {
           if (!state.zoomedElement) return;
-
-          const touchCurrentX = e.touches[0].clientX;
-          const touchCurrentY = e.touches[0].clientY;
-
-          const deltaX = touchCurrentX - touchStartX;
-          const deltaY = touchCurrentY - touchStartY;
-
+          const deltaX = e.touches[0].clientX - touchStartX;
+          const deltaY = e.touches[0].clientY - touchStartY;
           if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
             e.preventDefault();
           }
@@ -1885,26 +1833,17 @@
         const handleTouchEnd = (e) => {
           element.removeEventListener("touchmove", handleTouchMove);
           element.removeEventListener("touchend", handleTouchEnd);
-
-          const touchEndX = e.changedTouches[0].clientX;
-          const deltaX = touchEndX - touchStartX;
-
+          const deltaX = e.changedTouches[0].clientX - touchStartX;
           if (deltaX < -50) changeSlide(1);
           else if (deltaX > 50) changeSlide(-1);
-
-          // Restart timer if user stops interacting (checks new index)
           startSwipeHintTimer();
         };
 
         const handleTouchStart = (e) => {
           if (e.touches.length > 1) return;
-
-          // Hide hint immediately on interaction
           hideSwipeHint();
-
           touchStartX = e.touches[0].clientX;
           touchStartY = e.touches[0].clientY;
-
           element.addEventListener("touchmove", handleTouchMove, {
             passive: false,
           });
@@ -1921,14 +1860,12 @@
       function handleSlideshowClick(e, element) {
         const rect = element.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
-        const width = rect.width;
-        if (clickX > width / 2) changeSlide(1);
+        if (clickX > rect.width / 2) changeSlide(1);
         else changeSlide(-1);
       }
 
       function changeSlide(direction, isAutoSkip = false) {
         if (!state.zoomedElement) return;
-
         const gallery = GALLERIES[state.currentGalleryIndex];
         let nextIdx = state.currentSlideIndex + direction;
         if (nextIdx >= gallery.length) nextIdx = 0;
@@ -1936,17 +1873,14 @@
 
         state.currentSlideIndex = nextIdx;
         state.zoomedElement.dataset.slideIndex = nextIdx;
-
         state.slideRequestId = (state.slideRequestId || 0) + 1;
         const reqId = state.slideRequestId;
 
         if (!state.isMuted && !state.isMobile && !isAutoSkip) {
           skipSound.currentTime = 0;
-          skipSound.play().catch((e) => {});
+          skipSound.play().catch(() => {});
         }
 
-        // LOADER LOGIC
-        // If not auto-skipping, reset everything for a fresh start
         if (!isAutoSkip) {
           if (state.loaderTimeout) clearTimeout(state.loaderTimeout);
           const existingLoader =
@@ -1956,50 +1890,40 @@
             if (reqId === state.slideRequestId) {
               const loader = document.createElement("div");
               loader.className = "slide-loader";
-
               loader.innerHTML = `
-                                         <div class="loading-rect"></div>
-                                         <div class="loading-rect"></div>
-                                         <div class="loading-rect"></div>
-                                         <div class="loading-rect"></div>
-                                        `;
+                <div class="loading-rect"></div>
+                <div class="loading-rect"></div>
+                <div class="loading-rect"></div>
+                <div class="loading-rect"></div>
+              `;
               state.zoomedElement.appendChild(loader);
               state.zoomedElement.classList.add("loading-active");
-
               refreshLoaderScale(state.zoomedElement);
             }
           }, 300);
         }
 
-        const url = gallery[nextIdx];
-
         loadMedia(
-          url,
+          gallery[nextIdx],
           state.zoomedElement,
           (newEl) => {
             if (reqId !== state.slideRequestId) {
               newEl.remove();
               return;
             }
-
             if (state.loaderTimeout) clearTimeout(state.loaderTimeout);
             const loader = state.zoomedElement.querySelector(".slide-loader");
             if (loader) loader.remove();
-
             state.zoomedElement.classList.remove("loading-active");
-
-            const oldSlides =
-              state.zoomedElement.querySelectorAll(".slide-image");
-            oldSlides.forEach((el) => {
-              if (el !== newEl) el.remove();
-            });
-
+            state.zoomedElement
+              .querySelectorAll(".slide-image")
+              .forEach((el) => {
+                if (el !== newEl) el.remove();
+              });
             preloadNeighbors(state.currentGalleryIndex, nextIdx);
           },
           () => {
-            if (reqId === state.slideRequestId) {
-              changeSlide(direction, true);
-            }
+            if (reqId === state.slideRequestId) changeSlide(direction, true);
           },
         );
       }
@@ -2009,7 +1933,7 @@
           const s = new Audio("sounds/swoosh.mp3");
           s.volume = 1.0;
           s.playbackRate = 1.8;
-          s.play().catch((e) => {});
+          s.play().catch(() => {});
         }
 
         hideSwipeHint();
@@ -2030,12 +1954,16 @@
             if (zoomedEl) zoomedEl.style.removeProperty("--target-scale");
           }, 500);
         }
-        const fadedEls = document.querySelectorAll(".trail-image.faded");
-        fadedEls.forEach((el) => el.remove());
+
+        document
+          .querySelectorAll(".trail-image.faded")
+          .forEach((el) => el.remove());
+
         setTimeout(() => {
           if (zoomedEl) zoomedEl.remove();
-          const allImages = document.querySelectorAll(".trail-image");
-          allImages.forEach((img) => img.remove());
+          document
+            .querySelectorAll(".trail-image")
+            .forEach((img) => img.remove());
           state.count = 0;
           state.hasMoved = false;
           state.lastX = 0;
