@@ -36,6 +36,7 @@
         overscroll-behavior: none;
         overscroll-behavior-y: none;
         height: 100%;
+        touch-action: none;
       }
 
       html,
@@ -891,7 +892,7 @@
               }
             }
           },
-          { capture: true, passive: true },
+          { capture: true, passive: false },
         );
       });
 
