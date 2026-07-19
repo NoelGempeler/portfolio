@@ -103,6 +103,8 @@
         left: 0;
         pointer-events: none;
         z-index: 2147483647;
+        opacity: 0;
+        visibility: hidden;
         font-family: "Programme", sans-serif;
         font-weight: 700;
         font-size: 3rem;
@@ -110,7 +112,10 @@
         color: #ffffff;
         mix-blend-mode: difference;
         transform: translate(-50%, -50%);
-        transition: transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+        transition:
+          opacity 0.2s ease,
+          visibility 0.2s ease,
+          transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
         will-change: transform, top, left;
         text-align: center;
         width: 4rem;
@@ -118,6 +123,11 @@
         display: flex;
         align-items: center;
         justify-content: center;
+      }
+
+      #custom-cursor.cursor-active {
+        opacity: 1;
+        visibility: visible;
       }
 
       body.is-mobile #custom-cursor {
@@ -229,18 +239,27 @@
         opacity: 0;
       }
 
+      #nav-shuffle {
+        display: none;
+        position: relative;
+        cursor: none !important;
+        pointer-events: auto;
+        user-select: none;
+        z-index: 0;
+      }
+
       @media (max-width: 800px) {
         nav {
-          display: grid;
-          grid-template-columns: max-content max-content max-content;
+          display: flex;
+          flex-wrap: nowrap;
+          align-items: baseline;
+          justify-content: flex-start;
+          gap: 0;
           column-gap: 4rem;
-          justify-content: start;
           overflow-x: auto;
           white-space: nowrap;
           -ms-overflow-style: none;
           scrollbar-width: none;
-          gap: 0;
-          column-gap: 4rem;
         }
         nav::-webkit-scrollbar {
           display: none;
@@ -249,11 +268,21 @@
         #nav-center {
           display: block !important;
           text-align: left;
-          margin-right: 0;
+          margin-right: auto;
         }
 
-        #nav-sound,
-        #nav-scale {
+        #nav-scale,
+        #nav-view-mode,
+        #nav-sound {
+          display: none !important;
+        }
+
+        #nav-shuffle {
+          display: block !important;
+        }
+
+        body.zoomed-active #nav-shuffle,
+        body.about-active #nav-shuffle {
           display: none !important;
         }
 
@@ -280,6 +309,14 @@
         text-decoration: none;
         color: inherit;
         cursor: none !important;
+      }
+
+      #nav-view-mode {
+        position: relative;
+        cursor: none !important;
+        pointer-events: auto;
+        user-select: none;
+        z-index: 0;
       }
 
       #nav-sound {
@@ -545,9 +582,55 @@
       }
 
       .trail-image.faded {
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.1s ease-out;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        visibility: hidden;
+        transition:
+          opacity 0.35s ease,
+          visibility 0.35s ease;
+      }
+
+      .trail-image.shuffling {
+        transition:
+          transform 0.9s cubic-bezier(0.45, 0, 0.55, 1),
+          opacity 0.9s cubic-bezier(0.45, 0, 0.55, 1),
+          left 0.9s cubic-bezier(0.45, 0, 0.55, 1),
+          top 0.9s cubic-bezier(0.45, 0, 0.55, 1),
+          visibility 0s;
+      }
+
+      .trail-image.embed-project {
+        overflow: hidden;
+        isolation: isolate;
+      }
+
+      .trail-image.embed-project .slide-image {
+        display: none;
+      }
+
+      .embed-cover-blank {
+        background-color: #ffffff;
+      }
+
+      .embed-shell {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: #ffffff;
+        pointer-events: auto;
+      }
+
+      .project-embed {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        display: block;
+        background-color: #ffffff;
+        pointer-events: auto;
       }
 
       #backdrop {
@@ -698,6 +781,108 @@
       #swipe-hint.visible {
         opacity: 1;
       }
+
+      #welcome-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 100000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: #ffffff;
+        transition: opacity 0.5s ease;
+        pointer-events: auto;
+      }
+
+      #welcome-screen.welcome-dismissed {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .welcome-title {
+        font-size: 1rem;
+        font-weight: 400;
+        text-align: center;
+        color: #000000;
+        max-width: 20rem;
+        line-height: 1.25;
+        pointer-events: none;
+      }
+
+      #grid-view {
+        display: none;
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 6rem 1rem 4rem;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 1rem;
+        align-content: start;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+      }
+
+      #grid-view.active {
+        display: grid;
+      }
+
+      body.view-grid #helper-text {
+        opacity: 0 !important;
+        pointer-events: none;
+      }
+
+      body.view-grid #canvas {
+        touch-action: pan-y;
+      }
+
+      .grid-tile {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0;
+        border: none;
+        background: transparent;
+        text-align: left;
+        pointer-events: auto;
+      }
+
+      .grid-tile-media {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 3 / 2;
+        overflow: hidden;
+        background-color: #f3f4f6;
+      }
+
+      .grid-tile-media.grid-tile-blank {
+        background-color: #ffffff;
+        border: 1px solid #e5e7eb;
+      }
+
+      .grid-tile-cover {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        pointer-events: none;
+      }
+
+      .grid-tile-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        line-height: 1.2;
+      }
+
+      @media (max-width: 800px) {
+        #grid-view {
+          grid-template-columns: repeat(2, 1fr);
+          padding: 5rem 0.75rem 5rem;
+          gap: 0.75rem;
+        }
+      }
     </style>
   </head>
   <body>
@@ -706,6 +891,10 @@
       <div class="loading-rect"></div>
       <div class="loading-rect"></div>
       <div class="loading-rect"></div>
+    </div>
+
+    <div id="welcome-screen">
+      <p class="welcome-title">click anywhere to enter</p>
     </div>
 
     <div id="custom-cursor">+</div>
@@ -733,7 +922,13 @@
         <span class="back">image</span>
       </div>
 
+      <div id="nav-view-mode" class="nav-text" data-active-mode="trail">
+        grid
+      </div>
+
       <div id="nav-sound" class="nav-text">unmute</div>
+
+      <div id="nav-shuffle" class="nav-text">shuffle</div>
     </nav>
 
     <footer>
@@ -804,1174 +999,11 @@
           move mouse to drop images. click to expand & slide:)
         </p>
       </div>
+      <div id="grid-view" aria-label="project grid"></div>
       <div id="backdrop"></div>
       <div id="swipe-hint">please swipe</div>
     </div>
 
-    <script>
-      console.log("Application initializing...");
-
-      if (navigator.userAgent.includes("Instagram")) {
-        const overlay = document.createElement("div");
-        overlay.style.position = "fixed";
-        overlay.style.top = "0";
-        overlay.style.left = "0";
-        overlay.style.width = "100%";
-        overlay.style.height = "100%";
-        overlay.style.zIndex = "99999999";
-        overlay.style.background =
-          "radial-gradient(circle at top right, rgba(0, 123, 255, 0.4) 0%, transparent 40%), white";
-        overlay.style.display = "flex";
-        overlay.style.alignItems = "center";
-        overlay.style.justifyContent = "center";
-        overlay.style.fontFamily = '"Programme", sans-serif';
-        overlay.style.fontSize = "1rem";
-        overlay.innerText = "please open website on external browser :)";
-        document.body.appendChild(overlay);
-      }
-
-      try {
-        Element.prototype.setPointerCapture = function () {};
-        Element.prototype.releasePointerCapture = function () {};
-      } catch (e) {}
-
-      const shadowObserver = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          if (mutation.addedNodes) {
-            mutation.addedNodes.forEach((node) => {
-              if (node.nodeType === 1 && node.shadowRoot) {
-                injectShadowStyles(node.shadowRoot);
-              }
-              if (
-                node.nodeType === 1 &&
-                node.tagName.toLowerCase() === "model-viewer"
-              ) {
-                if (node.shadowRoot) injectShadowStyles(node.shadowRoot);
-              }
-            });
-          }
-        });
-      });
-
-      shadowObserver.observe(document.body, { childList: true, subtree: true });
-
-      setInterval(() => {
-        document.querySelectorAll("*").forEach((el) => {
-          if (el.shadowRoot) injectShadowStyles(el.shadowRoot);
-        });
-      }, 500);
-
-      function injectShadowStyles(shadowRoot) {
-        if (shadowRoot.querySelector("style[data-cursor-fix]")) return;
-        const style = document.createElement("style");
-        style.setAttribute("data-cursor-fix", "true");
-        style.textContent = `
-          :host, :host *, * { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=="), none !important; caret-color: transparent !important; }
-          a, button, input, canvas, div, .container { cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCB2My41LjbQg61aAAAADUlEQVQYV2P4//8/IwAI/QL/+TZZdwAAAABJRU5ErkJggg=="), none !important; }
-        `;
-        shadowRoot.appendChild(style);
-      }
-
-      document.querySelectorAll("*").forEach((el) => {
-        if (el.shadowRoot) injectShadowStyles(el.shadowRoot);
-      });
-
-      ["mouseover", "mousedown", "mouseup", "click", "focus"].forEach((evt) => {
-        document.addEventListener(
-          evt,
-          (e) => {
-            if (e.target && e.target.style) {
-              e.target.style.cursor = "none";
-            }
-            if (evt === "mouseup" || evt === "click") {
-              if (
-                document.activeElement &&
-                document.activeElement !== document.body
-              ) {
-                document.activeElement.blur();
-              }
-            }
-          },
-          { capture: true, passive: false },
-        );
-      });
-
-      document.addEventListener("dragstart", (e) => e.preventDefault());
-      document.addEventListener("selectstart", (e) => e.preventDefault());
-      document.addEventListener("contextmenu", (e) => e.preventDefault());
-
-      // --- CONFIGURATION ---
-      const CONFIG = {
-        boxWidth: 200,
-        boxHeight: 133,
-        minDist: 120,
-        maxImages: 12,
-        navZoneHeight: 100,
-        mobileScale: 0.75,
-        mobileMinDist: 60,
-        mobileBoxWidth: 120,
-        mobileBoxHeight: 80,
-        edgeGap: 0,
-      };
-
-      const GALLERIES = [];
-
-      const projectFolders = [
-        { name: "experimente", count: 21 },
-        { name: "bitwusst", count: 16 },
-        { name: "fotografik", count: 14 },
-        { name: "layout2", count: 13 },
-        { name: "london", count: 26 },
-        { name: "musikplakat", count: 8 },
-        { name: "paris", count: 18 },
-        { name: "prepress", count: 8 },
-        { name: "entwicklung", count: 7 },
-        { name: "tat", count: 5 },
-        { name: "ringwebsite", count: 5 },
-        { name: "scans", count: 18 },
-      ];
-
-      for (let i = 0; i < projectFolders.length; i++) {
-        const folder = projectFolders[i].name;
-        const limit = projectFolders[i].count;
-        const arr = [`bilder/${folder}/${folder}cover.webp`];
-        for (let j = 1; j <= limit; j++) {
-          arr.push(`bilder/${folder}/${j}.webp`);
-        }
-        GALLERIES.push(arr);
-      }
-
-      const PROJECT_NAMES = [
-        "ARCHIVE",
-        "BITWUSST?",
-        "BITGRAMM",
-        "24 HOURS",
-        "WILD LONDON",
-        "MASTER CONCERTS",
-        "PERDUS",
-        "GREETINGS LUCERNE!",
-        "GARDEN SCISSORS",
-        "TAT",
-        "ANELL",
-        "DIGITAL SCANS",
-      ];
-
-      const CAPTIONS = [
-        "<span class='caption-specs'>Archive<span class='spec-sep'>|</span>20xx<span class='spec-sep'>|</span></span>A sandbox for creative coding and visual curiosity. Ranging from interactive TouchDesigner jams to generative experiments, this is where I hunt for weird textures and unexpected aesthetics. It's a space to play, break algorithms, and embrace happy accidents, treating code like a messy material to see what strange visuals come out the other side.",
-        "<span class='caption-specs'>Poster<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>BITWUSST? acts as an interface between scientific <a href='bilder/report_bitwusst.pdf' download style='cursor: none !important; color: inherit; text-decoration: underline;'>theory</a> and visual communication. Comprising a report and an accompanying poster, the project traces a spectrum of consciousness extending from atoms to algorithms. Grounded in Integrated Information Theory and Panpsychism, it investigates whether awareness is a fundamental property of matter itself or merely a result of complex processing. The work questions if feeling necessitates biological flesh, or if digital sensors can generate genuine presence. Ultimately, BITWUSST? encourages a quiet reflection on the nature of reality and Consciousness.",
-        "<span class='caption-specs'>Print<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>Serving as a visual evolution of the BITWUSST? project, this work translates the initial theoretical inquiry into a more material outcome. Centered around a newspaper publication and a photogram series with analog studies of form. The imagery captures a spectrum of materials ranging from organic elements like leaves, grass, and seeds to synthetic artifacts like cables and generated neural networks. By treating both the botanical and the technical with the same darkroom process, the work creates a unified texture where nature and technology come together.",
-        "<span class='caption-specs'>Editorial<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>One day, one class, 12 stories. For the interdisciplinary project 24 Hours, I created a system that translates time into structure. Using a grid of 24 rows and 60 columns, representing every hour and minute. The grid dictates where the images are located, physically displacing and reorganizing the typography around them. It is a visual study of time, rhythm, and tension between content and form.",
-        "<span class='caption-specs'>Editorial<span class='spec-sep'>|</span>2025<span class='spec-sep'>|</span></span>London is usually mapped by human needs, but for this collaborative publication, we shifted the narrative. Exploring the city through the senses of 88 different species, from the peregrine falcon surveying the Thames to the urban fox navigating by scent. The project challenges our anthropocentric view of the metropolis. Each student adopted the perspective of a specific animal, visualizing how landmarks become obstacles and streets become hunting grounds. The resulting book is a collective portrait of a hidden London, documenting the impossible but necessary attempt to see the city through eyes other than our own.",
-        "<span class='caption-specs'>Moving Poster<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>For this campaign, I used TouchDesigner to translate the concept of resonance into a graphic system. The typography is rendered as a dispersing point cloud, creating a visual noise that implies frequency and vibration. This aesthetic tries to capture the dynamic atmosphere of the concerts, providing a fluid identity for both the poster and the motion design.",
-        "<span class='caption-specs'>Editorial<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>In a city where Baroque grandeur collides with social invisibility, PERDUS explores the rift between power and marginalization. Anchored at the Place des Victoires, the project weaves together street scans, historical context, and social critique into a dialogue. Working through absence rather than depiction, the publication is dedicated to those who remain unseen, present in the city, yet forgotten by it.",
-        "<span class='caption-specs'>Postcard<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>Bypassing the scenic Mount Pilatus and the Chapel Bridge, this work focuses on street philosopher Emil Manser. The goal was to capture the imperfect side of Lucerne on a Postcard. Using Python, I built a custom generator that reconstructed Manser's portrait from the text of his famous socialy critical street signs.",
-        "<span class='caption-specs'>Object Study<span class='spec-sep'>|</span>2023<span class='spec-sep'>|</span></span>This project focuses on the analytical drawing and conceptual investigation of a given object. I studied the pruning shear's form, mechanics, surface structure, and materiality using perspectival drawings and print-based techniques. Visual experiments, technical tests, and material samples formed the basis for a physical model and impact studies on cardboard.",
-        "<span class='caption-specs'>Latent Study<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span> A generative study using StreamDiffusion and TouchDesigner. The project utilizes my grandfather's archive of nature photography, ranging from fungi and trees to flowers as visual anchors. Crucially, each photo is paired with the unique poem he wrote for it, creating a dataset defined by deep personal connection. In the system, the translated text of each poem acts as the specific semantic driver for its paired image, steering the trajectory within the neural network. By manipulating the parameters live, the installation reveals this morphing process, a continuous latent walk that navigates the distance between the image of the plant and the emotional reality of the poem.",
-        "<span class='caption-specs'>Ring Project<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span>Focusing on the potential of discarded materials, <a href='https://anell.ch/' target='_blank' style='cursor: none !important; color: inherit; text-decoration: underline;'>anell.ch</a> turns antique silverware into wearable objects. Each ring is unique, retaining the scratches and stamps of its previous life. This is the yet unfinished online home for the upcycling project I run with my brother. The focus here isn't on branding, but on simple reuse, taking discarded silverspoons and giving them a second life.",
-        "<span class='caption-specs'>Scans<span class='spec-sep'>|</span>2025<span class='spec-sep'>|</span></span> Visual study of connection beetween a hand scanner and digital moving screens. Contains series of digital scansof the movie All About Lily Chou-Chou.",
-      ];
-
-      // --- STATE ---
-      const state = {
-        lastX: 0,
-        lastY: 0,
-        count: 0,
-        hasMoved: false,
-        isZoomed: false,
-        zoomedElement: null,
-        currentGalleryIndex: 0,
-        currentSlideIndex: 0,
-        isAnimating: false,
-        aboutActive: false,
-        collisionEdges: {
-          top: false,
-          bottom: false,
-          left: false,
-          right: false,
-        },
-        isMobile: false,
-        isLoading: true,
-        currentMobileScale: 1,
-        anchorEdge: null,
-        currentScale: 1,
-        currentTx: 0,
-        currentTy: 0,
-        slideRequestId: 0,
-        isMuted: true,
-        clickAlt: false,
-      };
-
-      // FIX 5: track whether a touch became a drag so we never fire
-      // accidental tap-zoom events mid-drawing
-      let touchMoved = false;
-      let touchStartTime = 0;
-
-      const HOVER_POOL_SIZE = 10;
-      const hoverPool = [];
-      let hoverPoolIndex = 0;
-
-      for (let i = 0; i < HOVER_POOL_SIZE; i++) {
-        const a = new Audio("sounds/click.mp3");
-        a.preload = "auto";
-        a.volume = 1.0;
-        hoverPool.push(a);
-      }
-
-      const soundOn = new Audio("sounds/on.mp3");
-      soundOn.preload = "auto";
-      const soundOff = new Audio("sounds/off.mp3");
-      soundOff.preload = "auto";
-      const zoomSound = new Audio("sounds/zoom.mp3");
-      zoomSound.preload = "auto";
-      const skipSound = new Audio("sounds/skip.mp3");
-      skipSound.preload = "auto";
-
-      // --- DOM REFERENCES ---
-      const canvas = document.getElementById("canvas");
-      const aboutPage = document.getElementById("about-page");
-      const backdrop = document.getElementById("backdrop");
-      const helperText = document.getElementById("helper-text");
-      const navCenter = document.getElementById("nav-center");
-      const navHome = document.getElementById("nav-home");
-      const navAbout = document.getElementById("nav-about");
-      const navSound = document.getElementById("nav-sound");
-      const navScale = document.getElementById("nav-scale");
-      const footerText = document.getElementById("footer-text");
-      const footerEl = document.querySelector("footer");
-      const customCursor = document.getElementById("custom-cursor");
-      const expandBtn = document.getElementById("expand-btn");
-      const swipeHintEl = document.getElementById("swipe-hint");
-
-      const checkMobile = () => {
-        if (window.innerWidth < 800) {
-          state.isMobile = true;
-          document.body.classList.add("is-mobile");
-          helperText.innerText = "drag finger to draw. tap box to expand :)";
-        }
-      };
-      checkMobile();
-      window.addEventListener("resize", checkMobile);
-
-      function preloadAllCovers() {
-        let loadedCount = 0;
-        const total = GALLERIES.length;
-        const dots = document.querySelectorAll(".loading-rect");
-        let finished = false;
-
-        function finishLoading() {
-          if (finished) return;
-          finished = true;
-          const screen = document.getElementById("loading-screen");
-          if (screen) {
-            screen.style.opacity = "0";
-            setTimeout(() => screen.remove(), 500);
-          }
-          state.isLoading = false;
-        }
-
-        function updateLoader() {
-          loadedCount++;
-          const ratio = loadedCount / total;
-          const dotsToFill = Math.ceil(ratio * 4);
-          dots.forEach((dot, idx) => {
-            if (idx < dotsToFill) dot.classList.add("filled");
-          });
-          if (loadedCount >= total) finishLoading();
-        }
-
-        setTimeout(finishLoading, 3000);
-
-        GALLERIES.forEach((gallery) => {
-          const src = gallery[0];
-          const img = new Image();
-          img.onload = updateLoader;
-          img.onerror = () => {
-            const vid = document.createElement("video");
-            vid.onloadeddata = updateLoader;
-            vid.onerror = updateLoader;
-            vid.src = src.replace(".webp", ".mp4");
-          };
-          img.src = src;
-        });
-      }
-      preloadAllCovers();
-
-      let lastHoverTime = 0;
-      function playHoverSound() {
-        if (state.isMobile) return;
-        if (state.isMuted) return;
-        const now = Date.now();
-        const delta = now - lastHoverTime;
-        lastHoverTime = now;
-        const sound = hoverPool[hoverPoolIndex];
-        hoverPoolIndex = (hoverPoolIndex + 1) % HOVER_POOL_SIZE;
-        sound.pause();
-        sound.currentTime = 0;
-        if (delta < 200) {
-          sound.playbackRate = 1 + Math.max(0, (200 - delta) / 200);
-        } else {
-          sound.playbackRate = 1;
-        }
-        sound.play().catch(() => {});
-      }
-
-      function playToggleSound(e) {
-        if (state.isMobile) return;
-        if (state.isMuted) return;
-        const el = e.currentTarget;
-        const currentState = el.dataset.soundState || "off";
-        if (currentState === "on") {
-          soundOff.currentTime = 0;
-          soundOff.play().catch(() => {});
-          el.dataset.soundState = "off";
-        } else {
-          soundOn.currentTime = 0;
-          soundOn.play().catch(() => {});
-          el.dataset.soundState = "on";
-        }
-      }
-
-      navSound.addEventListener("click", () => {
-        state.isMuted = !state.isMuted;
-        navSound.innerText = state.isMuted ? "unmute" : "mute";
-        document.querySelectorAll("video").forEach((video) => {
-          video.muted = state.isMuted;
-        });
-        if (!state.isMuted) {
-          soundOn.currentTime = 0;
-          soundOn
-            .play()
-            .then(() => {
-              soundOn.pause();
-              soundOn.currentTime = 0;
-            })
-            .catch(() => {});
-        } else {
-          soundOff.currentTime = 0;
-          soundOff.play().catch(() => {});
-        }
-      });
-
-      navHome.addEventListener("mouseenter", playHoverSound);
-      navCenter.addEventListener("mouseenter", playHoverSound);
-      navAbout.addEventListener("mouseenter", playHoverSound);
-      navSound.addEventListener("mouseenter", playHoverSound);
-      navScale.addEventListener("mouseenter", playHoverSound);
-
-      navHome.addEventListener("click", playToggleSound);
-      navAbout.addEventListener("click", playToggleSound);
-      navScale.addEventListener("click", playToggleSound);
-
-      const onProgress = (event) => {
-        const progressBar = event.target.querySelector(".progress-bar");
-        const updatingBar = event.target.querySelector(".update-bar");
-        if (updatingBar) {
-          updatingBar.style.width = `${event.detail.totalProgress * 100}%`;
-        }
-        if (event.detail.totalProgress === 1) {
-          if (progressBar) progressBar.classList.add("hide");
-          event.target.removeEventListener("progress", onProgress);
-        } else {
-          if (progressBar) progressBar.classList.remove("hide");
-        }
-      };
-      const modelViewer = document.querySelector("model-viewer");
-      if (modelViewer) {
-        modelViewer.addEventListener("progress", onProgress);
-      }
-
-      // FIX 6: guard getCameraOrbit with try/catch so errors don't bubble
-      aboutPage.addEventListener("scroll", () => {
-        if (state.isMobile && modelViewer) {
-          try {
-            const scrollTop = aboutPage.scrollTop;
-            const rotation = -scrollTop * 0.005;
-            const orbit = modelViewer.getCameraOrbit();
-            if (orbit) {
-              modelViewer.cameraOrbit = `${rotation}rad ${orbit.phi}rad ${orbit.radius}m`;
-            }
-          } catch (err) {}
-        }
-      });
-
-      const updateInfo = (boxId) => {
-        const projName = PROJECT_NAMES[boxId - 1] || "";
-        if (navCenter) navCenter.innerText = projName;
-        const caption = CAPTIONS[boxId - 1] || "";
-        if (footerText) footerText.innerHTML = caption;
-      };
-
-      const resetInfo = () => {
-        if (navCenter)
-          navCenter.innerHTML =
-            '<a href="mailto:ggg@gigergrafik.ch" target="_blank">@<span class="domain-text">gigergrafik.ch</span></a>';
-        if (footerText) footerText.innerText = "";
-      };
-
-      let swipeTimer = null;
-
-      function startSwipeHintTimer() {
-        if (!state.isMobile || !state.isZoomed) return;
-        if (state.currentSlideIndex !== 0) return;
-        clearTimeout(swipeTimer);
-        swipeTimer = setTimeout(() => {
-          if (state.isZoomed && state.currentSlideIndex === 0) {
-            swipeHintEl.classList.add("visible");
-          }
-        }, 3000);
-      }
-
-      function hideSwipeHint() {
-        clearTimeout(swipeTimer);
-        swipeHintEl.classList.remove("visible");
-      }
-
-      const resetTrail = () => {
-        const allImages = document.querySelectorAll(".trail-image");
-        allImages.forEach((img) => img.remove());
-        state.count = 0;
-        state.hasMoved = false;
-        state.lastX = 0;
-        state.lastY = 0;
-        helperText.style.opacity = "1";
-      };
-
-      const preloadNeighbors = (galleryIdx, currentSlideIdx) => {
-        const gallery = GALLERIES[galleryIdx];
-        const nextIdx = (currentSlideIdx + 1) % gallery.length;
-        const prevIdx = (currentSlideIdx - 1 + gallery.length) % gallery.length;
-        new Image().src = gallery[nextIdx];
-        new Image().src = gallery[prevIdx];
-      };
-
-      function loadMedia(
-        src,
-        container,
-        onSuccess,
-        onError,
-        className = "slide-image",
-      ) {
-        const img = new Image();
-        img.className = className;
-
-        img.onload = () => {
-          container.appendChild(img);
-          if (onSuccess) onSuccess(img);
-        };
-
-        img.onerror = () => {
-          const vidFill = document.createElement("video");
-          vidFill.className = className;
-          vidFill.muted = true;
-          vidFill.loop = true;
-          vidFill.autoplay = true;
-          vidFill.playsInline = true;
-          vidFill.style.objectFit = "cover";
-          vidFill.style.height = "100%";
-          vidFill.style.top = "0";
-
-          vidFill.onloadeddata = () => {
-            container.appendChild(vidFill);
-            vidFill
-              .play()
-              .then(() => {
-                if (!state.isMuted && !state.isMobile) vidFill.muted = false;
-              })
-              .catch(() => {});
-            if (onSuccess) onSuccess(vidFill);
-          };
-
-          vidFill.onerror = () => {
-            const vid = document.createElement("video");
-            vid.className = className;
-            vid.muted = true;
-            vid.loop = true;
-            vid.autoplay = true;
-            vid.playsInline = true;
-
-            vid.onloadeddata = () => {
-              container.appendChild(vid);
-              vid
-                .play()
-                .then(() => {
-                  if (!state.isMuted && !state.isMobile) vid.muted = false;
-                })
-                .catch(() => {});
-              if (onSuccess) onSuccess(vid);
-            };
-
-            vid.onerror = () => {
-              const vidRot = document.createElement("video");
-              vidRot.className = className + " rotate-90";
-              vidRot.muted = true;
-              vidRot.loop = true;
-              vidRot.autoplay = true;
-              vidRot.playsInline = true;
-
-              vidRot.onloadeddata = () => {
-                container.appendChild(vidRot);
-                vidRot
-                  .play()
-                  .then(() => {
-                    if (!state.isMuted && !state.isMobile) vidRot.muted = false;
-                  })
-                  .catch(() => {});
-                if (onSuccess) onSuccess(vidRot);
-              };
-
-              vidRot.onerror = () => {
-                if (onError) onError();
-              };
-
-              const basePath = src.substring(0, src.lastIndexOf("."));
-              vidRot.src = basePath + "-90.mp4";
-            };
-
-            const basePath = src.substring(0, src.lastIndexOf("."));
-            vid.src = basePath + ".mp4";
-          };
-
-          const basePath = src.substring(0, src.lastIndexOf("."));
-          vidFill.src = basePath + "fill.mp4";
-        };
-
-        img.src = src;
-      }
-
-      // --- NAVIGATION ---
-      navAbout.addEventListener("click", () => {
-        resetInfo();
-        if (state.isZoomed) {
-          state.isZoomed = false;
-          state.zoomedElement = null;
-          document.body.classList.remove("zoomed-active");
-          navScale.style.display = "none";
-        }
-        canvas.classList.add("hidden-canvas");
-        state.aboutActive = true;
-        navAbout.style.visibility = "hidden";
-        navHome.classList.add("g-mode");
-        setTimeout(() => {
-          aboutPage.classList.add("active");
-          setTimeout(() => (aboutPage.style.opacity = "1"), 10);
-        }, 400);
-      });
-
-      navHome.addEventListener("click", (e) => {
-        playToggleSound(e);
-        navHome.classList.remove("g-mode");
-        if (state.aboutActive) {
-          state.aboutActive = false;
-          aboutPage.style.opacity = "0";
-          setTimeout(() => {
-            aboutPage.classList.remove("active");
-            canvas.classList.remove("hidden-canvas");
-            navAbout.style.visibility = "visible";
-            resetTrail();
-            state.isZoomed = false;
-            document.body.classList.remove("zoomed-active");
-            navScale.style.display = "none";
-            window.scrollTo(0, 0);
-          }, 400);
-        } else if (state.isZoomed) {
-          zoomOut();
-          setTimeout(() => {
-            resetTrail();
-            window.scrollTo(0, 0);
-          }, 550);
-        } else {
-          resetTrail();
-          window.scrollTo(0, 0);
-        }
-      });
-
-      navScale.addEventListener("click", () => {
-        if (!state.zoomedElement || state.isMobile) return;
-        navScale.classList.remove("flicker-anim");
-
-        const el = state.zoomedElement;
-        const rect = el.getBoundingClientRect();
-        const footerRect = footerEl.getBoundingClientRect();
-        const limitBottom = footerRect.top - 4;
-        const limitRight = window.innerWidth;
-
-        const isTop = Math.abs(rect.top) < 2;
-        const isBottom = Math.abs(rect.bottom - limitBottom) < 2;
-        const isLeft = Math.abs(rect.left) < 2;
-        const isRight = Math.abs(rect.right - limitRight) < 2;
-
-        if ((isTop && isBottom) || (isLeft && isRight)) {
-          if (isTop && isBottom && isLeft && isRight) return;
-          if (isTop && isBottom) return;
-          if (isLeft && isRight) return;
-        }
-
-        let anchor = state.anchorEdge;
-        if (isTop && isLeft) anchor = "top-left";
-        else if (isTop && isRight) anchor = "top-right";
-        else if (isBottom && isLeft) anchor = "bottom-left";
-        else if (isBottom && isRight) anchor = "bottom-right";
-        else if (isTop) anchor = "top";
-        else if (isBottom) anchor = "bottom";
-        else if (isLeft) anchor = "left";
-        else if (isRight) anchor = "right";
-        state.anchorEdge = anchor;
-
-        let ratios = [];
-        const currentW = rect.width;
-        const currentH = rect.height;
-        const spaceTop = rect.top;
-        const spaceBottom = limitBottom - rect.bottom;
-        const spaceLeft = rect.left;
-        const spaceRight = limitRight - rect.right;
-
-        if (anchor === "top") {
-          if (spaceBottom > 1)
-            ratios.push({ r: (currentH + spaceBottom) / currentH, type: "h" });
-          const sideSpace = Math.min(spaceLeft, spaceRight);
-          if (sideSpace > 1)
-            ratios.push({
-              r: (currentW + 2 * sideSpace) / currentW,
-              type: "w_sym",
-            });
-        } else if (anchor === "bottom") {
-          if (spaceTop > 1)
-            ratios.push({ r: (currentH + spaceTop) / currentH, type: "h" });
-          const sideSpace = Math.min(spaceLeft, spaceRight);
-          if (sideSpace > 1)
-            ratios.push({
-              r: (currentW + 2 * sideSpace) / currentW,
-              type: "w_sym",
-            });
-        } else if (anchor === "left") {
-          if (spaceRight > 1)
-            ratios.push({ r: (currentW + spaceRight) / currentW, type: "w" });
-          const vertSpace = Math.min(spaceTop, spaceBottom);
-          if (vertSpace > 1)
-            ratios.push({
-              r: (currentH + 2 * vertSpace) / currentH,
-              type: "h_sym",
-            });
-        } else if (anchor === "right") {
-          if (spaceLeft > 1)
-            ratios.push({ r: (currentW + spaceLeft) / currentW, type: "w" });
-          const vertSpace = Math.min(spaceTop, spaceBottom);
-          if (vertSpace > 1)
-            ratios.push({
-              r: (currentH + 2 * vertSpace) / currentH,
-              type: "h_sym",
-            });
-        } else if (anchor === "top-left") {
-          if (spaceBottom > 1)
-            ratios.push({ r: (currentH + spaceBottom) / currentH, type: "h" });
-          if (spaceRight > 1)
-            ratios.push({ r: (currentW + spaceRight) / currentW, type: "w" });
-        } else if (anchor === "top-right") {
-          if (spaceBottom > 1)
-            ratios.push({ r: (currentH + spaceBottom) / currentH, type: "h" });
-          if (spaceLeft > 1)
-            ratios.push({ r: (currentW + spaceLeft) / currentW, type: "w" });
-        } else if (anchor === "bottom-left") {
-          if (spaceTop > 1)
-            ratios.push({ r: (currentH + spaceTop) / currentH, type: "h" });
-          if (spaceRight > 1)
-            ratios.push({ r: (currentW + spaceRight) / currentW, type: "w" });
-        } else if (anchor === "bottom-right") {
-          if (spaceTop > 1)
-            ratios.push({ r: (currentH + spaceTop) / currentH, type: "h" });
-          if (spaceLeft > 1)
-            ratios.push({ r: (currentW + spaceLeft) / currentW, type: "w" });
-        }
-
-        ratios = ratios.filter((item) => item.r > 1.005);
-        ratios.sort((a, b) => a.r - b.r);
-
-        if (ratios.length === 0) {
-          state.currentScale = state.initialScale;
-          state.currentTx = 0;
-          state.currentTy = 0;
-          el.style.setProperty("--target-scale", state.initialScale);
-          el.style.setProperty("--tx", "0px");
-          el.style.setProperty("--ty", "0px");
-          return;
-        }
-
-        const best = ratios[0];
-        const growthFactor = best.r;
-        const nextScale = state.currentScale * growthFactor;
-        state.currentScale = nextScale;
-
-        let dX = 0;
-        let dY = 0;
-        const rawGrowthW = currentW * (growthFactor - 1);
-        const rawGrowthH = currentH * (growthFactor - 1);
-
-        if (anchor === "top") dY = rawGrowthH / 2;
-        else if (anchor === "bottom") dY = -rawGrowthH / 2;
-        else if (anchor === "left") dX = rawGrowthW / 2;
-        else if (anchor === "right") dX = -rawGrowthW / 2;
-        else if (anchor === "top-left") {
-          dX = rawGrowthW / 2;
-          dY = rawGrowthH / 2;
-        } else if (anchor === "top-right") {
-          dX = -rawGrowthW / 2;
-          dY = rawGrowthH / 2;
-        } else if (anchor === "bottom-left") {
-          dX = rawGrowthW / 2;
-          dY = -rawGrowthH / 2;
-        } else if (anchor === "bottom-right") {
-          dX = -rawGrowthW / 2;
-          dY = -rawGrowthH / 2;
-        }
-
-        state.currentTx += dX;
-        state.currentTy += dY;
-        el.style.setProperty("--target-scale", nextScale);
-        el.style.setProperty("--tx", state.currentTx + "px");
-        el.style.setProperty("--ty", state.currentTy + "px");
-        refreshLoaderScale(el);
-      });
-
-      function refreshLoaderScale(element) {
-        const loader = element.querySelector(".slide-loader");
-        if (loader) {
-          let scaleVal = parseFloat(
-            element.style.getPropertyValue("--target-scale"),
-          );
-          if (!scaleVal || isNaN(scaleVal)) scaleVal = 1;
-          loader.style.transform = `translate(-50%, -50%) scale(${1 / scaleVal})`;
-        }
-      }
-
-      document.addEventListener("mousemove", (e) => {
-        if (state.isMobile) return;
-        if (state.isLoading) return;
-        const cx = e.clientX;
-        const cy = e.clientY;
-        customCursor.style.left = cx + "px";
-        customCursor.style.top = cy + "px";
-
-        let rotation = 0;
-        const isOverModel = e.target.tagName.toLowerCase() === "model-viewer";
-
-        if (state.isZoomed && state.zoomedElement) {
-          const rect = state.zoomedElement.getBoundingClientRect();
-          if (
-            cx >= rect.left &&
-            cx <= rect.right &&
-            cy >= rect.top &&
-            cy <= rect.bottom
-          ) {
-            const relX = cx - rect.left;
-            customCursor.innerHTML =
-              relX < rect.width / 2 ? "&larr;" : "&rarr;";
-            rotation = 0;
-          } else {
-            customCursor.innerHTML = "+";
-            rotation = 45;
-          }
-        } else if (isOverModel) {
-          customCursor.innerHTML = "+";
-          rotation = 0;
-        } else {
-          customCursor.innerHTML = "+";
-        }
-
-        customCursor.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
-        handleTrailLogic(cx, cy);
-      });
-
-      // FIX 7: touchmove — always preventDefault on mobile canvas to block
-      // pull-to-refresh and iOS back/forward swipe gestures
-      document.addEventListener(
-        "touchmove",
-        (e) => {
-          if (!state.isMobile) return;
-
-          // Let the about page scroll freely
-          if (state.aboutActive) return;
-
-          // Always block default for non-model-viewer touches — this is the
-          // key fix that stops iOS pull-to-refresh during trail drawing
-          if (!e.target.closest("model-viewer")) {
-            e.preventDefault();
-          }
-
-          if (e.target.closest("model-viewer") || state.isZoomed) return;
-          if (state.isLoading) return;
-
-          touchMoved = true;
-          const touch = e.touches[0];
-          handleTrailLogic(touch.clientX, touch.clientY);
-        },
-        { passive: false },
-      );
-
-      // FIX 8: touchstart resets the drag-tracking flag
-      document.addEventListener(
-        "touchstart",
-        (e) => {
-          if (state.aboutActive) return;
-          if (e.target.closest("model-viewer") || state.isZoomed) return;
-          if (!state.isMobile) return;
-          touchMoved = false;
-          touchStartTime = Date.now();
-          const touch = e.touches[0];
-          state.lastX = touch.clientX;
-          state.lastY = touch.clientY;
-        },
-        { passive: true },
-      );
-
-      function handleTrailLogic(cx, cy) {
-        if (cy < CONFIG.navZoneHeight) return;
-        if (state.isZoomed || canvas.classList.contains("hidden-canvas"))
-          return;
-        if (!state.hasMoved) {
-          helperText.style.opacity = "0";
-          state.hasMoved = true;
-        }
-        const dist = Math.hypot(cx - state.lastX, cy - state.lastY);
-        const limit = state.isMobile ? CONFIG.mobileMinDist : CONFIG.minDist;
-        if (dist > limit) {
-          createBox(cx, cy);
-          state.lastX = cx;
-          state.lastY = cy;
-        }
-      }
-
-      // FIX 9: skip click if it followed a drag — prevents accidental zoom
-      // after drawing a trail on mobile
-      canvas.addEventListener("click", (e) => {
-        if (state.isMobile && touchMoved) {
-          touchMoved = false;
-          return;
-        }
-
-        const target = e.target.closest(".trail-image");
-        if (target && !state.isZoomed) {
-          zoomIn(target);
-          e.stopPropagation();
-          return;
-        }
-        if (
-          state.isZoomed &&
-          target &&
-          target.classList.contains("zoomed") &&
-          !state.isMobile
-        ) {
-          handleSlideshowClick(e, target);
-          e.stopPropagation();
-        }
-      });
-
-      backdrop.addEventListener("click", zoomOut);
-      backdrop.addEventListener(
-        "touchstart",
-        (e) => {
-          if (state.isZoomed) {
-            e.preventDefault();
-            zoomOut();
-          }
-        },
-        { passive: false },
-      );
-
-      function createBox(x, y) {
-        if (state.count >= CONFIG.maxImages) return;
-        state.count++;
-        const boxId = state.count;
-        const container = document.createElement("div");
-        container.className = "trail-image";
-        container.addEventListener("mouseenter", playHoverSound);
-
-        const width = state.isMobile ? CONFIG.mobileBoxWidth : CONFIG.boxWidth;
-        const height = state.isMobile
-          ? CONFIG.mobileBoxHeight
-          : CONFIG.boxHeight;
-        container.style.width = width + "px";
-        container.style.height = height + "px";
-        container.style.setProperty(
-          "--idle-scale",
-          state.isMobile ? CONFIG.mobileScale : 1,
-        );
-
-        const galleryIndex = (state.count - 1) % GALLERIES.length;
-        container.dataset.galleryIndex = galleryIndex;
-        container.dataset.slideIndex = 0;
-        container.dataset.boxId = boxId;
-
-        loadMedia(
-          GALLERIES[galleryIndex][0],
-          container,
-          () => {},
-          () => {
-            container.style.backgroundColor = "#e5e7eb";
-            container.style.border = "1px solid #9ca3af";
-          },
-        );
-
-        container.style.left = `${x}px`;
-        container.style.top = `${y}px`;
-
-        container.addEventListener("mouseenter", () => {
-          if (!state.isZoomed) {
-            navCenter.innerText = PROJECT_NAMES[boxId - 1] || "";
-          }
-        });
-        container.addEventListener("mouseleave", () => {
-          if (!state.isZoomed) resetInfo();
-        });
-
-        container.addEventListener("click", () => {
-          if (!state.isMuted && !state.isMobile && !state.isZoomed) {
-            zoomSound.currentTime = 0;
-            zoomSound.play().catch(() => {});
-          }
-        });
-
-        canvas.appendChild(container);
-      }
-
-      function zoomIn(element) {
-        state.isZoomed = true;
-        state.zoomedElement = element;
-        state.currentGalleryIndex = parseInt(element.dataset.galleryIndex);
-        state.currentSlideIndex = parseInt(element.dataset.slideIndex);
-        updateInfo(parseInt(element.dataset.boxId));
-        preloadNeighbors(state.currentGalleryIndex, state.currentSlideIndex);
-        document.body.classList.add("zoomed-active");
-
-        document.querySelectorAll(".trail-image").forEach((sib) => {
-          if (sib !== element) sib.classList.add("faded");
-        });
-
-        if (state.isMobile) {
-          const vpW = window.innerWidth;
-          const currentW =
-            parseFloat(element.style.width) || CONFIG.mobileBoxWidth;
-          const scale = (vpW / currentW) * 1.005;
-          state.currentMobileScale = scale;
-
-          const newCenterX = vpW / 2;
-          let newCenterY = parseFloat(element.style.top);
-          const scaledH =
-            (parseFloat(element.style.height) || CONFIG.mobileBoxHeight) *
-            scale;
-          const halfH = scaledH / 2;
-          const footerRect = footerEl.getBoundingClientRect();
-          const limitBottom = footerRect.top - 2.5;
-
-          if (newCenterY + halfH > limitBottom)
-            newCenterY = limitBottom - halfH;
-          if (newCenterY - halfH < 0) newCenterY = halfH;
-
-          element.style.left = newCenterX + "px";
-          element.style.top = newCenterY + "px";
-          element.style.setProperty("--target-scale", scale);
-          element.classList.add("zoomed");
-
-          swipeHintEl.style.left = newCenterX + "px";
-          swipeHintEl.style.top = newCenterY + "px";
-
-          addSwipeListener(element);
-          startSwipeHintTimer();
-          return;
-        }
-
-        const canvasW = canvas.offsetWidth;
-        const footerRect = footerEl.getBoundingClientRect();
-        const limitBottom = footerRect.top - 3;
-        const currentW = parseFloat(element.style.width);
-        const currentH = parseFloat(element.style.height);
-        const centerX = parseFloat(element.style.left);
-        const centerY = parseFloat(element.style.top);
-
-        const finalScale = Math.min(
-          centerY / (currentH / 2),
-          (limitBottom - centerY) / (currentH / 2),
-          centerX / (currentW / 2),
-          (canvasW - centerX) / (currentW / 2),
-        );
-
-        state.currentScale = finalScale;
-        state.currentTx = 0;
-        state.currentTy = 0;
-
-        const distTop = centerY / (currentH / 2);
-        const distBottom = (limitBottom - centerY) / (currentH / 2);
-        const distLeft = centerX / (currentW / 2);
-        const distRight = (canvasW - centerX) / (currentW / 2);
-
-        let anchor = "";
-        if (Math.abs(finalScale - distTop) < 0.01) anchor = "top";
-        else if (Math.abs(finalScale - distBottom) < 0.01) anchor = "bottom";
-        else if (Math.abs(finalScale - distLeft) < 0.01) anchor = "left";
-        else if (Math.abs(finalScale - distRight) < 0.01) anchor = "right";
-        state.anchorEdge = anchor;
-
-        element.style.setProperty("--target-scale", finalScale);
-        element.style.setProperty("--tx", "0px");
-        element.style.setProperty("--ty", "0px");
-        element.classList.add("zoomed");
-        navScale.style.display = "block";
-        navScale.classList.remove("flicker-anim");
-      }
-
-      function addSwipeListener(element) {
-        let touchStartX = 0;
-        let touchStartY = 0;
-
-        const handleTouchMove = (e) => {
-          if (!state.zoomedElement) return;
-          const deltaX = e.touches[0].clientX - touchStartX;
-          const deltaY = e.touches[0].clientY - touchStartY;
-          if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
-            e.preventDefault();
-          }
-        };
-
-        const handleTouchEnd = (e) => {
-          element.removeEventListener("touchmove", handleTouchMove);
-          element.removeEventListener("touchend", handleTouchEnd);
-          const deltaX = e.changedTouches[0].clientX - touchStartX;
-          if (deltaX < -50) changeSlide(1);
-          else if (deltaX > 50) changeSlide(-1);
-          startSwipeHintTimer();
-        };
-
-        const handleTouchStart = (e) => {
-          if (e.touches.length > 1) return;
-          hideSwipeHint();
-          touchStartX = e.touches[0].clientX;
-          touchStartY = e.touches[0].clientY;
-          element.addEventListener("touchmove", handleTouchMove, {
-            passive: false,
-          });
-          element.addEventListener("touchend", handleTouchEnd, {
-            passive: true,
-          });
-        };
-
-        element.addEventListener("touchstart", handleTouchStart, {
-          passive: true,
-        });
-      }
-
-      function handleSlideshowClick(e, element) {
-        const rect = element.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        if (clickX > rect.width / 2) changeSlide(1);
-        else changeSlide(-1);
-      }
-
-      function changeSlide(direction, isAutoSkip = false) {
-        if (!state.zoomedElement) return;
-        const gallery = GALLERIES[state.currentGalleryIndex];
-        let nextIdx = state.currentSlideIndex + direction;
-        if (nextIdx >= gallery.length) nextIdx = 0;
-        if (nextIdx < 0) nextIdx = gallery.length - 1;
-
-        state.currentSlideIndex = nextIdx;
-        state.zoomedElement.dataset.slideIndex = nextIdx;
-        state.slideRequestId = (state.slideRequestId || 0) + 1;
-        const reqId = state.slideRequestId;
-
-        if (!state.isMuted && !state.isMobile && !isAutoSkip) {
-          skipSound.currentTime = 0;
-          skipSound.play().catch(() => {});
-        }
-
-        if (!isAutoSkip) {
-          if (state.loaderTimeout) clearTimeout(state.loaderTimeout);
-          const existingLoader =
-            state.zoomedElement.querySelector(".slide-loader");
-          if (existingLoader) existingLoader.remove();
-          state.loaderTimeout = setTimeout(() => {
-            if (reqId === state.slideRequestId) {
-              const loader = document.createElement("div");
-              loader.className = "slide-loader";
-              loader.innerHTML = `
-                <div class="loading-rect"></div>
-                <div class="loading-rect"></div>
-                <div class="loading-rect"></div>
-                <div class="loading-rect"></div>
-              `;
-              state.zoomedElement.appendChild(loader);
-              state.zoomedElement.classList.add("loading-active");
-              refreshLoaderScale(state.zoomedElement);
-            }
-          }, 300);
-        }
-
-        loadMedia(
-          gallery[nextIdx],
-          state.zoomedElement,
-          (newEl) => {
-            if (reqId !== state.slideRequestId) {
-              newEl.remove();
-              return;
-            }
-            if (state.loaderTimeout) clearTimeout(state.loaderTimeout);
-            const loader = state.zoomedElement.querySelector(".slide-loader");
-            if (loader) loader.remove();
-            state.zoomedElement.classList.remove("loading-active");
-            state.zoomedElement
-              .querySelectorAll(".slide-image")
-              .forEach((el) => {
-                if (el !== newEl) el.remove();
-              });
-            preloadNeighbors(state.currentGalleryIndex, nextIdx);
-          },
-          () => {
-            if (reqId === state.slideRequestId) changeSlide(direction, true);
-          },
-        );
-      }
-
-      function zoomOut() {
-        if (!state.isMobile && !state.isMuted) {
-          const s = new Audio("sounds/swoosh.mp3");
-          s.volume = 1.0;
-          s.playbackRate = 1.8;
-          s.play().catch(() => {});
-        }
-
-        hideSwipeHint();
-        state.isZoomed = false;
-        state.zoomedElement = null;
-        resetInfo();
-        navScale.style.display = "none";
-        navScale.classList.remove("flicker-anim");
-        document.body.classList.remove("zoomed-active");
-
-        const zoomedEl = document.querySelector(".trail-image.zoomed");
-        if (zoomedEl) {
-          zoomedEl.classList.remove("loading-active");
-          zoomedEl.classList.remove("zoomed");
-          zoomedEl.style.removeProperty("--tx");
-          zoomedEl.style.removeProperty("--ty");
-          setTimeout(() => {
-            if (zoomedEl) zoomedEl.style.removeProperty("--target-scale");
-          }, 500);
-        }
-
-        document
-          .querySelectorAll(".trail-image.faded")
-          .forEach((el) => el.remove());
-
-        setTimeout(() => {
-          if (zoomedEl) zoomedEl.remove();
-          document
-            .querySelectorAll(".trail-image")
-            .forEach((img) => img.remove());
-          state.count = 0;
-          state.hasMoved = false;
-          state.lastX = 0;
-          state.lastY = 0;
-          helperText.style.opacity = "1";
-        }, 550);
-      }
-    </script>
+    <script type="module" src="js/app.js"></script>
   </body>
 </html>
