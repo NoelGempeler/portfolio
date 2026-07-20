@@ -141,6 +141,15 @@ export function getCoverPath(project) {
   return `bilder/${project.folder}/${project.folder}cover.webp`;
 }
 
+/** Lightweight trail thumb for mobile (~800px). Falls back to full cover path. */
+/** @param {Project} project */
+export function getMobileCoverPath(project) {
+  if (project.cover) {
+    return project.cover.replace(/(\.[^.]+)$/, "-sm$1");
+  }
+  return `bilder/${project.folder}/${project.folder}cover-sm.webp`;
+}
+
 /** @param {Project} project */
 export function buildGallery(project) {
   if (project.type === "embed") {

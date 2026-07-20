@@ -1,5 +1,5 @@
 import { CONFIG, VIEW_MODE_KEY } from "./config.js";
-import { PROJECTS, GALLERIES, getCoverPath } from "./projects.js";
+import { PROJECTS, GALLERIES, getCoverPath, getMobileCoverPath } from "./projects.js";
 
 console.log("Application initializing...");
 
@@ -645,13 +645,24 @@ function restoreProjectThumbnail(element) {
   });
   element.classList.remove("embed-project", "loading-active");
 
-  const coverSrc = gallery[0];
+  const project = getProjectByGalleryIndex(galleryIndex);
+  const coverSrc =
+    state.isMobile && project
+      ? getMobileCoverPath(project)
+      : gallery[0];
   if (coverSrc) {
     loadMedia(
       coverSrc,
       element,
       () => {},
-      () => {},
+      () => {
+        // If -sm missing, fall back to full cover
+        if (state.isMobile && project && coverSrc !== gallery[0]) {
+          loadMedia(gallery[0], element, () => {}, () => {}, "slide-image", {
+            allowVideo: false,
+          });
+        }
+      },
       "slide-image",
       { allowVideo: !state.isMobile },
     );
@@ -754,7 +765,10 @@ function pumpThumbQueue() {
 }
 
 function loadBoxThumbnail(container, galleryIndex, done) {
-  const src = GALLERIES[galleryIndex]?.[0];
+  const project = getProjectByGalleryIndex(galleryIndex);
+  const fullSrc = GALLERIES[galleryIndex]?.[0];
+  const src =
+    state.isMobile && project ? getMobileCoverPath(project) : fullSrc;
   if (!src) {
     done?.();
     return;
@@ -764,6 +778,20 @@ function loadBoxThumbnail(container, galleryIndex, done) {
     container,
     () => done?.(),
     () => {
+      if (state.isMobile && fullSrc && src !== fullSrc) {
+        loadMedia(
+          fullSrc,
+          container,
+          () => done?.(),
+          () => {
+            container.style.backgroundColor = "#e5e7eb";
+            done?.();
+          },
+          "slide-image",
+          { allowVideo: false },
+        );
+        return;
+      }
       container.style.backgroundColor = "#e5e7eb";
       done?.();
     },
@@ -1440,6 +1468,29 @@ function zoomIn(element, options = {}) {
 
   if (!isEmbed) {
     const gallery = GALLERIES[state.currentGalleryIndex];
+    // Mobile: swap trail thumb for full-res cover on open
+    if (state.isMobile && state.currentSlideIndex === 0 && gallery[0]) {
+      loadMedia(
+        gallery[0],
+        element,
+        (newEl) => {
+          element.querySelectorAll(".slide-image").forEach((el) => {
+            if (el === newEl) return;
+            if (el.tagName === "VIDEO") {
+              try {
+                el.pause();
+                el.removeAttribute("src");
+                el.load();
+              } catch (err) {}
+            }
+            el.remove();
+          });
+        },
+        () => {},
+        "slide-image",
+        { allowVideo: false },
+      );
+    }
     // Skip auto-loading the heavy GLB screen recording on mobile
     if (
       !state.isMobile &&
