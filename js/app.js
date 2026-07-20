@@ -93,7 +93,10 @@ document.addEventListener("selectstart", (e) => e.preventDefault());
 document.addEventListener("contextmenu", (e) => e.preventDefault());
 
 const savedViewMode = localStorage.getItem(VIEW_MODE_KEY);
-const initialViewMode = savedViewMode === "grid" ? "grid" : "trail";
+const initialViewMode = "trail";
+if (savedViewMode && savedViewMode !== "trail") {
+  localStorage.setItem(VIEW_MODE_KEY, "trail");
+}
 
 const state = {
   lastX: 0,
@@ -234,12 +237,8 @@ function enterSite() {
 
   if (customCursor) customCursor.classList.add("cursor-active");
   updateHelperText();
-  // Phone: always land in trail with a fresh random layout (no drag needed)
-  if (state.isMobile) {
-    applyViewMode("trail", { persist: false });
-  } else {
-    applyViewMode(state.viewMode, { persist: false });
-  }
+  // Phone + desktop: trail only for now
+  applyViewMode("trail", { persist: false });
 }
 
 if (welcomeScreen) {
@@ -273,9 +272,8 @@ function applyViewMode(mode, { persist = true } = {}) {
 }
 
 function toggleViewMode() {
-  if (!state.hasEntered || state.isZoomed || state.aboutActive) return;
-  const nextMode = state.viewMode === "trail" ? "grid" : "trail";
-  applyViewMode(nextMode);
+  // Grid mode disabled for now — trail only
+  return;
 }
 
 function renderGrid() {
@@ -402,22 +400,23 @@ function preloadAllCovers() {
     if (loadedCount >= total) finishLoading();
   }
 
+  // Mobile: skip heavy cover preload — thumbnails load after enter, staggered
+  if (state.isMobile) {
+    setTimeout(finishLoading, 400);
+    return;
+  }
+
   setTimeout(finishLoading, 3000);
 
-        GALLERIES.forEach((gallery) => {
-          const src = gallery[0];
-          if (!src) {
-            updateLoader();
-            return;
-          }
+  GALLERIES.forEach((gallery) => {
+    const src = gallery[0];
+    if (!src) {
+      updateLoader();
+      return;
+    }
     const img = new Image();
     img.onload = updateLoader;
-    img.onerror = () => {
-      const vid = document.createElement("video");
-      vid.onloadeddata = updateLoader;
-      vid.onerror = updateLoader;
-      vid.src = src.replace(".webp", ".mp4");
-    };
+    img.onerror = updateLoader;
     img.src = src;
   });
 }
@@ -640,6 +639,7 @@ function restoreProjectThumbnail(element) {
   if (!gallery?.length) return;
 
   element.dataset.slideIndex = "0";
+  unloadBoxMedia(element);
   element.querySelectorAll(".slide-image, .embed-shell").forEach((node) => {
     node.remove();
   });
@@ -647,7 +647,14 @@ function restoreProjectThumbnail(element) {
 
   const coverSrc = gallery[0];
   if (coverSrc) {
-    loadMedia(coverSrc, element, () => {}, () => {});
+    loadMedia(
+      coverSrc,
+      element,
+      () => {},
+      () => {},
+      "slide-image",
+      { allowVideo: !state.isMobile },
+    );
   }
 }
 
@@ -697,8 +704,13 @@ function spawnMobileProjects() {
   if (!state.isMobile || state.viewMode !== "trail") return;
   if (!state.hasEntered || state.isZoomed || state.aboutActive) return;
 
-  document.querySelectorAll(".trail-image").forEach((img) => img.remove());
+  document.querySelectorAll(".trail-image").forEach((img) => {
+    unloadBoxMedia(img);
+    img.remove();
+  });
   state.count = 0;
+  thumbLoadQueue = [];
+  thumbLoadActive = 0;
 
   const total = Math.min(PROJECTS.length, CONFIG.maxImages);
   const positions = generateMobilePositions(total);
@@ -707,17 +719,94 @@ function spawnMobileProjects() {
     const { x, y } = positions[i];
     state.count++;
     const galleryIndex = i % PROJECTS.length;
-    const container = createProjectBox(galleryIndex, x, y, i + 1);
+    const container = createProjectBox(galleryIndex, x, y, i + 1, {
+      deferMedia: true,
+    });
     container.dataset.originX = String(x);
     container.dataset.originY = String(y);
     canvas.appendChild(container);
+    enqueueThumbLoad(container, galleryIndex);
   }
 
   state.hasMoved = true;
   if (helperText) helperText.style.opacity = "0";
 }
 
+let thumbLoadQueue = [];
+let thumbLoadActive = 0;
+
+function enqueueThumbLoad(container, galleryIndex) {
+  thumbLoadQueue.push({ container, galleryIndex });
+  pumpThumbQueue();
+}
+
+function pumpThumbQueue() {
+  const limit = CONFIG.mobileThumbConcurrency || 2;
+  while (thumbLoadActive < limit && thumbLoadQueue.length > 0) {
+    const job = thumbLoadQueue.shift();
+    if (!job?.container?.isConnected) continue;
+    thumbLoadActive++;
+    loadBoxThumbnail(job.container, job.galleryIndex, () => {
+      thumbLoadActive--;
+      pumpThumbQueue();
+    });
+  }
+}
+
+function loadBoxThumbnail(container, galleryIndex, done) {
+  const src = GALLERIES[galleryIndex]?.[0];
+  if (!src) {
+    done?.();
+    return;
+  }
+  loadMedia(
+    src,
+    container,
+    () => done?.(),
+    () => {
+      container.style.backgroundColor = "#e5e7eb";
+      done?.();
+    },
+    "slide-image",
+    { allowVideo: false },
+  );
+}
+
+function unloadBoxMedia(container) {
+  if (!container) return;
+  container.querySelectorAll("video").forEach((video) => {
+    try {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    } catch (err) {}
+    video.remove();
+  });
+  container.querySelectorAll("img.slide-image").forEach((img) => {
+    img.removeAttribute("src");
+    img.remove();
+  });
+}
+
+function unloadFadedTrailMedia() {
+  document.querySelectorAll(".trail-image.faded").forEach((el) => {
+    unloadBoxMedia(el);
+  });
+}
+
+function reloadVisibleThumbnails() {
+  if (!state.isMobile) return;
+  document.querySelectorAll(".trail-image").forEach((el) => {
+    if (el.classList.contains("zoomed")) return;
+    if (el.querySelector(".slide-image")) return;
+    const galleryIndex = parseInt(el.dataset.galleryIndex, 10);
+    if (Number.isNaN(galleryIndex)) return;
+    enqueueThumbLoad(el, galleryIndex);
+  });
+}
+
 const preloadNeighbors = (galleryIdx, currentSlideIdx) => {
+  if (state.isMobile) return;
   const gallery = GALLERIES[galleryIdx];
   const nextIdx = (currentSlideIdx + 1) % gallery.length;
   const prevIdx = (currentSlideIdx - 1 + gallery.length) % gallery.length;
@@ -731,9 +820,12 @@ function loadMedia(
   onSuccess,
   onError,
   className = "slide-image",
+  options = {},
 ) {
+  const { allowVideo = true } = options;
   const img = new Image();
   img.className = className;
+  img.decoding = "async";
 
   img.onload = () => {
     container.appendChild(img);
@@ -741,12 +833,18 @@ function loadMedia(
   };
 
   img.onerror = () => {
+    if (!allowVideo) {
+      if (onError) onError();
+      return;
+    }
+
     const vidFill = document.createElement("video");
     vidFill.className = className;
     vidFill.muted = true;
     vidFill.loop = true;
     vidFill.autoplay = true;
     vidFill.playsInline = true;
+    vidFill.preload = state.isMobile ? "metadata" : "auto";
     vidFill.style.objectFit = "cover";
     vidFill.style.height = "100%";
     vidFill.style.top = "0";
@@ -769,6 +867,7 @@ function loadMedia(
       vid.loop = true;
       vid.autoplay = true;
       vid.playsInline = true;
+      vid.preload = state.isMobile ? "metadata" : "auto";
 
       vid.onloadeddata = () => {
         container.appendChild(vid);
@@ -788,6 +887,7 @@ function loadMedia(
         vidRot.loop = true;
         vidRot.autoplay = true;
         vidRot.playsInline = true;
+        vidRot.preload = state.isMobile ? "metadata" : "auto";
 
         vidRot.onloadeddata = () => {
           container.appendChild(vidRot);
@@ -1250,7 +1350,8 @@ backdrop.addEventListener(
   { passive: false },
 );
 
-function createProjectBox(galleryIndex, x, y, boxId) {
+function createProjectBox(galleryIndex, x, y, boxId, options = {}) {
+  const { deferMedia = false } = options;
   const container = document.createElement("div");
   container.className = "trail-image";
   container.addEventListener("mouseenter", playHoverSound);
@@ -1272,17 +1373,25 @@ function createProjectBox(galleryIndex, x, y, boxId) {
 
   const mediaSrc = GALLERIES[galleryIndex][0];
 
-  if (mediaSrc) {
-    loadMedia(
-      mediaSrc,
-      container,
-      () => {},
-      () => {
-        container.style.backgroundColor = "#e5e7eb";
-        container.style.border = "1px solid #9ca3af";
-      },
-    );
-  } else if (project?.blankCover) {
+  if (!deferMedia) {
+    if (mediaSrc) {
+      loadMedia(
+        mediaSrc,
+        container,
+        () => {},
+        () => {
+          container.style.backgroundColor = "#e5e7eb";
+          container.style.border = "1px solid #9ca3af";
+        },
+        "slide-image",
+        { allowVideo: !state.isMobile },
+      );
+    } else if (project?.blankCover) {
+      const blank = document.createElement("div");
+      blank.className = "slide-image embed-cover-blank";
+      container.appendChild(blank);
+    }
+  } else if (project?.blankCover && !mediaSrc) {
     const blank = document.createElement("div");
     blank.className = "slide-image embed-cover-blank";
     container.appendChild(blank);
@@ -1331,7 +1440,12 @@ function zoomIn(element, options = {}) {
 
   if (!isEmbed) {
     const gallery = GALLERIES[state.currentGalleryIndex];
-    if (project?.id === "glbviewer" && gallery.length > 1) {
+    // Skip auto-loading the heavy GLB screen recording on mobile
+    if (
+      !state.isMobile &&
+      project?.id === "glbviewer" &&
+      gallery.length > 1
+    ) {
       state.currentSlideIndex = 1;
       element.dataset.slideIndex = 1;
       loadMedia(
@@ -1355,6 +1469,7 @@ function zoomIn(element, options = {}) {
   document.querySelectorAll(".trail-image").forEach((sib) => {
     if (sib !== element) sib.classList.add("faded");
   });
+  if (state.isMobile) unloadFadedTrailMedia();
 
   if (state.isMobile) {
     const originX = parseFloat(element.style.left);
@@ -1541,6 +1656,13 @@ function changeSlide(direction, isAutoSkip = false) {
     state.zoomedElement,
     (newEl) => {
       if (reqId !== state.slideRequestId) {
+        if (newEl.tagName === "VIDEO") {
+          try {
+            newEl.pause();
+            newEl.removeAttribute("src");
+            newEl.load();
+          } catch (err) {}
+        }
         newEl.remove();
         return;
       }
@@ -1549,7 +1671,15 @@ function changeSlide(direction, isAutoSkip = false) {
       if (loader) loader.remove();
       state.zoomedElement.classList.remove("loading-active");
       state.zoomedElement.querySelectorAll(".slide-image").forEach((el) => {
-        if (el !== newEl) el.remove();
+        if (el === newEl) return;
+        if (el.tagName === "VIDEO") {
+          try {
+            el.pause();
+            el.removeAttribute("src");
+            el.load();
+          } catch (err) {}
+        }
+        el.remove();
       });
       preloadNeighbors(state.currentGalleryIndex, nextIdx);
     },
@@ -1602,6 +1732,7 @@ function zoomOut() {
       document.querySelectorAll(".trail-image.faded").forEach((el) => {
         el.classList.remove("faded");
       });
+      reloadVisibleThumbnails();
     }, 550);
     return;
   }
