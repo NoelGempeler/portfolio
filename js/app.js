@@ -517,21 +517,56 @@ const onProgress = (event) => {
   }
 };
 const modelViewer = document.querySelector("model-viewer");
-if (modelViewer) {
-  modelViewer.addEventListener("progress", onProgress);
+
+const ABOUT_ORBIT_PHI = "75deg";
+const ABOUT_ORBIT_RADIUS_MOBILE = "95%";
+const ABOUT_ORBIT_RADIUS_DESKTOP = "110%";
+const ABOUT_SCALE_MOBILE = "0.96 0.96 0.96"; // 0.8 × 1.2
+const ABOUT_SCALE_DESKTOP = "0.8 0.8 0.8";
+
+function configureAboutModel() {
+  if (!modelViewer) return;
+  modelViewer.setAttribute("camera-controls", "");
+  modelViewer.setAttribute("touch-action", "none");
+  if (state.isMobile) {
+    modelViewer.scale = ABOUT_SCALE_MOBILE;
+    modelViewer.cameraOrbit = `0deg ${ABOUT_ORBIT_PHI} ${ABOUT_ORBIT_RADIUS_MOBILE}`;
+    modelViewer.fieldOfView = "30deg";
+  } else {
+    modelViewer.scale = ABOUT_SCALE_DESKTOP;
+    modelViewer.cameraOrbit = `0deg ${ABOUT_ORBIT_PHI} ${ABOUT_ORBIT_RADIUS_DESKTOP}`;
+    modelViewer.fieldOfView = "30deg";
+  }
 }
 
-aboutPage.addEventListener("scroll", () => {
-  if (state.isMobile && modelViewer) {
-    try {
-      const scrollTop = aboutPage.scrollTop;
-      const rotation = -scrollTop * 0.005;
-      const orbit = modelViewer.getCameraOrbit();
-      if (orbit) {
-        modelViewer.cameraOrbit = `${rotation}rad ${orbit.phi}rad ${orbit.radius}m`;
-      }
-    } catch (err) {}
-  }
+if (modelViewer) {
+  modelViewer.addEventListener("progress", onProgress);
+  modelViewer.addEventListener("load", () => {
+    configureAboutModel();
+  });
+  configureAboutModel();
+}
+
+function updateAboutScrollSpin() {
+  if (!state.isMobile || !aboutPage || !modelViewer) return;
+  try {
+    const orbit = modelViewer.getCameraOrbit();
+    if (!orbit) return;
+    // Scroll only yaws — keep current elevation + zoom from finger/pinch
+    const yaw = -aboutPage.scrollTop * 0.004;
+    const phi = Number.isFinite(orbit.phi)
+      ? `${orbit.phi}rad`
+      : ABOUT_ORBIT_PHI;
+    const radius =
+      Number.isFinite(orbit.radius) && orbit.radius > 0
+        ? `${orbit.radius}m`
+        : ABOUT_ORBIT_RADIUS_MOBILE;
+    modelViewer.cameraOrbit = `${yaw}rad ${phi} ${radius}`;
+  } catch (err) {}
+}
+
+aboutPage.addEventListener("scroll", updateAboutScrollSpin, {
+  passive: true,
 });
 
 const updateInfo = (boxId) => {
@@ -963,6 +998,8 @@ navAbout.addEventListener("click", () => {
   navHome.classList.add("g-mode");
   setTimeout(() => {
     aboutPage.classList.add("active");
+    aboutPage.scrollTop = 0;
+    configureAboutModel();
     setTimeout(() => (aboutPage.style.opacity = "1"), 10);
   }, 400);
 });

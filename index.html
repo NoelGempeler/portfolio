@@ -421,6 +421,15 @@
         pointer-events: none;
       }
 
+      .about-blend {
+        position: relative;
+        width: 100%;
+        min-height: 100%;
+        background-color: #ffffff;
+        /* Keep scan + text in one blend group (same as desktop look) */
+        isolation: isolate;
+      }
+
       .about-bio {
         text-align: justify;
         display: block;
@@ -441,36 +450,48 @@
         #about-page {
           overflow-y: auto;
           overflow-x: hidden;
-          -webkit-overflow-scrolling: touch;
-          /* FIX 4: allow scrolling in about page, contain overscroll so it doesn't bubble up */
+          /* Avoid -webkit-overflow-scrolling — it breaks mix-blend with WebGL on iOS */
           touch-action: pan-y !important;
           overscroll-behavior: contain;
+          background-color: #ffffff;
+        }
+
+        .about-blend {
+          isolation: isolate;
+          background-color: #ffffff;
+          min-height: 100%;
         }
 
         #about-page model-viewer {
-          position: absolute;
-          top: 0;
-          left: 0;
+          position: relative;
+          display: block;
+          top: auto;
+          left: auto;
           width: 100%;
           height: 100dvh;
-          touch-action: pan-y;
+          touch-action: none;
           z-index: 0;
+          background-color: transparent;
         }
 
         .about-bottom-text {
           position: relative;
-          margin-top: 70vh;
+          /* ~8–9 lines peek over the bottom of the scan at start */
+          margin-top: -11.5rem;
           text-align: left;
           line-height: 1.3;
-          bottom: 0;
+          bottom: auto;
           padding-left: 5px;
           padding-right: 10px;
-          padding-bottom: calc(20px + env(safe-area-inset-bottom));
-          color: #000000;
-          mix-blend-mode: normal;
+          padding-bottom: calc(40px + env(safe-area-inset-bottom));
+          /* Same as desktop: white + difference → reads black, inverts over the scan */
+          color: #ffffff;
+          mix-blend-mode: difference;
+          background-color: transparent;
           pointer-events: auto;
           z-index: 40;
-          min-height: 50vh;
+          min-height: 0;
+          touch-action: pan-y;
         }
 
         .about-bio {
@@ -937,56 +958,63 @@
     </footer>
 
     <div id="about-page">
-      <model-viewer
-        src="scans/untitled1.glb"
-        ar-modes="webxr scene-viewer quick-look"
-        camera-controls
-        orbit-sensitivity="1.5"
-        interpolation-decay="100"
-        tone-mapping="neutral"
-        poster="poster.webp"
-        shadow-intensity="0"
-        exposure="0.98"
-        scale="0.8 0.8 0.8"
-        interaction-prompt="none"
-      >
-        <div class="progress-bar hide" slot="progress-bar">
-          <div class="update-bar"></div>
-        </div>
-        <div slot="interaction-prompt"></div>
-      </model-viewer>
+      <div class="about-blend">
+        <model-viewer
+          src="scans/untitled1.glb"
+          ar-modes="webxr scene-viewer quick-look"
+          camera-controls
+          touch-action="none"
+          camera-orbit="0deg 75deg 100%"
+          field-of-view="30deg"
+          min-camera-orbit="auto auto 40%"
+          max-camera-orbit="auto auto 300%"
+          orbit-sensitivity="1.5"
+          interpolation-decay="100"
+          tone-mapping="neutral"
+          poster="poster.webp"
+          shadow-intensity="0"
+          exposure="0.98"
+          scale="0.8 0.8 0.8"
+          interaction-prompt="none"
+        >
+          <div class="progress-bar hide" slot="progress-bar">
+            <div class="update-bar"></div>
+          </div>
+          <div slot="interaction-prompt"></div>
+        </model-viewer>
 
-      <div class="about-center-text"></div>
-      <div class="about-bottom-text">
-        <div class="about-bio">
-          <span class="caption-specs"
-            >Noel Giger<span class="spec-sep">|</span>2005<span class="spec-sep"
-              >|</span
-            ></span
-          >
-          I'm a designer who loves exploring the experimental side of visual
-          communication. My practice is shaped by curiosity, both visually and
-          technically. I'm drawn to unusual aesthetics, generative ideas, and
-          graphic systems that challenge conventional expectations. Whether it's
-          through layouts that subvert traditional hierarchy, typography that
-          behaves more like a living organism, or mixing analog and digital
-          processes, I enjoy pushing my work into territories that feel a little
-          unfamiliar and unpredictable. I see design not only as a craft, but as
-          a tool for dialogue and reflection. I'm fascinated by how visual
-          language can amplify underrepresented voices, provoke thought, or make
-          people aware of the structures that surround them. I like to observe
-          the world with a critical eye and let those impressions influence the
-          way I create.
-        </div>
-        <div class="about-skills-list">
-          <span class="skill-item"><br /></span>
-          <span class="skill-item">InDesign</span>
-          <span class="skill-item">Illustrator</span>
-          <span class="skill-item">Photoshop</span>
-          <span class="skill-item">Creative Coding</span>
-          <span class="skill-item">TouchDesigner</span>
-          <span class="skill-item">Cavalry</span>
-          <span class="skill-item">Photography</span>
+        <div class="about-center-text"></div>
+        <div class="about-bottom-text">
+          <div class="about-bio">
+            <span class="caption-specs"
+              >Noel Giger<span class="spec-sep">|</span>2005<span class="spec-sep"
+                >|</span
+              ></span
+            >
+            I'm a designer who loves exploring the experimental side of visual
+            communication. My practice is shaped by curiosity, both visually and
+            technically. I'm drawn to unusual aesthetics, generative ideas, and
+            graphic systems that challenge conventional expectations. Whether it's
+            through layouts that subvert traditional hierarchy, typography that
+            behaves more like a living organism, or mixing analog and digital
+            processes, I enjoy pushing my work into territories that feel a little
+            unfamiliar and unpredictable. I see design not only as a craft, but as
+            a tool for dialogue and reflection. I'm fascinated by how visual
+            language can amplify underrepresented voices, provoke thought, or make
+            people aware of the structures that surround them. I like to observe
+            the world with a critical eye and let those impressions influence the
+            way I create.
+          </div>
+          <div class="about-skills-list">
+            <span class="skill-item"><br /></span>
+            <span class="skill-item">InDesign</span>
+            <span class="skill-item">Illustrator</span>
+            <span class="skill-item">Photoshop</span>
+            <span class="skill-item">Creative Coding</span>
+            <span class="skill-item">TouchDesigner</span>
+            <span class="skill-item">Cavalry</span>
+            <span class="skill-item">Photography</span>
+          </div>
         </div>
       </div>
     </div>
