@@ -254,8 +254,7 @@
           flex-wrap: nowrap;
           align-items: baseline;
           justify-content: flex-start;
-          gap: 0;
-          column-gap: 4rem;
+          gap: 1.25rem;
           overflow-x: auto;
           white-space: nowrap;
           -ms-overflow-style: none;
@@ -269,16 +268,25 @@
           display: block !important;
           text-align: left;
           margin-right: auto;
+          min-width: 0;
+          padding-right: 0.5rem;
         }
 
         #nav-scale,
-        #nav-view-mode,
-        #nav-sound {
+        #nav-view-mode {
           display: none !important;
+        }
+
+        #nav-sound {
+          flex-shrink: 0;
+          /* Reserve width for the longer label so layout doesn't collapse */
+          min-width: 4.25em;
+          margin-left: 0.25rem;
         }
 
         #nav-shuffle {
           display: block !important;
+          flex-shrink: 0;
         }
 
         body.zoomed-active #nav-shuffle,
@@ -326,6 +334,8 @@
         pointer-events: auto;
         user-select: none;
         z-index: 0;
+        flex-shrink: 0;
+        min-width: 4.25em;
       }
 
       #nav-scale {
@@ -586,6 +596,14 @@
         top: 3%;
         object-fit: contain;
         background-color: black;
+      }
+
+      /* GLB VIEWER only: stretch recording to fill the frame */
+      .trail-image[data-project-id="glbviewer"] video.slide-image {
+        height: 100% !important;
+        top: 0 !important;
+        object-fit: fill !important;
+        background-color: transparent;
       }
 
       .rotate-90 {

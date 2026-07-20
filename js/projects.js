@@ -126,12 +126,18 @@ export const PROJECTS = [
   },
   {
     id: "glbviewer",
-    name: "GLB VIEWER",
+    name: "SCAN ARCHIVE",
     type: "gallery",
     folder: "glbviewer",
-    slideCount: 1,
+    slideCount: 3,
+    cover: "bilder/glbviewer/1fill.mp4",
+    slides: [
+      "bilder/glbviewer/s1.webp",
+      "bilder/glbviewer/s2.webp",
+      "bilder/glbviewer/s3.webp",
+    ],
     caption:
-      "<span class='caption-specs'>Web Tool<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span>Collection of photogramic and lidar scans collected by me and my friends to explore and export images out of weird and unaccesable angles. Explore it at <a href='https://glb-viewer-ruby.vercel.app/' target='_blank' style='cursor: none !important; color: inherit; text-decoration: underline;'>glb-viewer-ruby.vercel.app</a>.",
+      "<span class='caption-specs'>SCAN ARCHIVE<span class='spec-sep'>|</span>Web Tool<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span>Collection of photogramic and lidar scans collected by me and my friends to explore and export images out of weird and unaccesable angles. Explore it at <a href='https://glb-viewer-ruby.vercel.app/' target='_blank' style='cursor: none !important; color: inherit; text-decoration: underline;'>glb-viewer-ruby.vercel.app</a>.",
   },
 ];
 
@@ -144,10 +150,26 @@ export function getCoverPath(project) {
 /** Lightweight trail thumb for mobile (~800px). Falls back to full cover path. */
 /** @param {Project} project */
 export function getMobileCoverPath(project) {
+  const cover = getCoverPath(project);
+  // Video covers: use a still thumb on mobile trail
+  if (/\.(mp4|webm|mov)$/i.test(cover)) {
+    return `bilder/${project.folder}/${project.folder}cover-sm.webp`;
+  }
   if (project.cover) {
     return project.cover.replace(/(\.[^.]+)$/, "-sm$1");
   }
   return `bilder/${project.folder}/${project.folder}cover-sm.webp`;
+}
+
+export function isVideoPath(src) {
+  return /\.(mp4|webm|mov)(\?|$)/i.test(src || "");
+}
+
+/** Mobile-optimized sibling, e.g. 1fill.mp4 → 1fill-mobile.mp4 */
+export function getMobileVideoPath(src) {
+  if (!isVideoPath(src)) return src;
+  if (/-mobile\.(mp4|webm|mov)(\?|$)/i.test(src)) return src;
+  return src.replace(/(\.(mp4|webm|mov))(\?|$)/i, "-mobile$1$3");
 }
 
 /** @param {Project} project */
@@ -157,8 +179,12 @@ export function buildGallery(project) {
     return [getCoverPath(project)];
   }
   const gallery = [getCoverPath(project)];
-  for (let j = 1; j <= project.slideCount; j++) {
-    gallery.push(`bilder/${project.folder}/${j}.webp`);
+  if (Array.isArray(project.slides) && project.slides.length) {
+    gallery.push(...project.slides);
+  } else {
+    for (let j = 1; j <= project.slideCount; j++) {
+      gallery.push(`bilder/${project.folder}/${j}.webp`);
+    }
   }
   return gallery;
 }

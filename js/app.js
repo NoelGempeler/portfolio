@@ -1,5 +1,5 @@
 import { CONFIG, VIEW_MODE_KEY } from "./config.js";
-import { PROJECTS, GALLERIES, getCoverPath, getMobileCoverPath } from "./projects.js";
+import { PROJECTS, GALLERIES, getCoverPath, getMobileCoverPath, isVideoPath, getMobileVideoPath } from "./projects.js";
 
 console.log("Application initializing...");
 
@@ -117,6 +117,8 @@ const state = {
   },
   isMobile: false,
   isLoading: true,
+  isMuted: true,
+  soundUnlocked: false,
   hasEntered: false,
   viewMode: initialViewMode,
   currentMobileScale: 1,
@@ -125,7 +127,6 @@ const state = {
   currentTx: 0,
   currentTy: 0,
   slideRequestId: 0,
-  isMuted: true,
   clickAlt: false,
 };
 
@@ -208,8 +209,28 @@ function updateHelperText() {
 function setSoundMuted(muted) {
   state.isMuted = muted;
   if (navSound) navSound.innerText = muted ? "unmute" : "mute";
+  if (!muted) state.soundUnlocked = true;
   document.querySelectorAll("video").forEach((video) => {
-    video.muted = muted;
+    applyVideoSound(video);
+  });
+}
+
+/** Keep video playback in sync with mute UI (especially on mobile). */
+function applyVideoSound(video) {
+  if (!video) return;
+  if (state.isMuted) {
+    video.muted = true;
+    return;
+  }
+  video.muted = false;
+  video.play().catch(() => {
+    // iOS blocked unmuted play — keep picture, ask for one unmute tap
+    video.muted = true;
+    video.play().catch(() => {});
+    if (!state.isMuted && state.isMobile) {
+      state.isMuted = true;
+      if (navSound) navSound.innerText = "unmute";
+    }
   });
 }
 
@@ -228,7 +249,12 @@ function enableSound() {
 function enterSite() {
   if (state.hasEntered) return;
   state.hasEntered = true;
-  enableSound();
+  // Mobile: stay muted so videos can autoplay; user taps "unmute" for sound
+  if (state.isMobile) {
+    setSoundMuted(true);
+  } else {
+    enableSound();
+  }
 
   if (welcomeScreen) {
     welcomeScreen.classList.add("welcome-dismissed");
@@ -296,7 +322,10 @@ function renderGrid() {
       const cover = document.createElement("img");
       cover.className = "grid-tile-cover";
       cover.alt = project.name;
-      cover.src = getCoverPath(project);
+      const coverPath = getCoverPath(project);
+      cover.src = isVideoPath(coverPath)
+        ? getMobileCoverPath(project)
+        : coverPath;
       cover.draggable = false;
       mediaWrap.appendChild(cover);
     }
@@ -588,9 +617,14 @@ let swipeTimer = null;
 function startSwipeHintTimer() {
   if (!state.isMobile || !state.isZoomed) return;
   if (state.currentSlideIndex !== 0) return;
+  const cover = GALLERIES[state.currentGalleryIndex]?.[0];
+  // No swipe hint on video covers
+  if (isVideoPath(cover)) return;
   clearTimeout(swipeTimer);
   swipeTimer = setTimeout(() => {
     if (state.isZoomed && state.currentSlideIndex === 0) {
+      const stillCover = GALLERIES[state.currentGalleryIndex]?.[0];
+      if (isVideoPath(stillCover)) return;
       swipeHintEl.classList.add("visible");
     }
   }, 3000);
@@ -673,6 +707,8 @@ function restoreProjectThumbnail(element) {
   const gallery = GALLERIES[galleryIndex];
   if (!gallery?.length) return;
 
+  // Cancel any in-flight slide loads from the previous open
+  state.slideRequestId = (state.slideRequestId || 0) + 1;
   element.dataset.slideIndex = "0";
   unloadBoxMedia(element);
   element.querySelectorAll(".slide-image, .embed-shell").forEach((node) => {
@@ -694,12 +730,16 @@ function restoreProjectThumbnail(element) {
         // If -sm missing, fall back to full cover
         if (state.isMobile && project && coverSrc !== gallery[0]) {
           loadMedia(gallery[0], element, () => {}, () => {}, "slide-image", {
-            allowVideo: false,
+            allowVideo: isVideoPath(gallery[0]),
+            objectFit: project?.id === "glbviewer" ? "fill" : undefined,
           });
         }
       },
       "slide-image",
-      { allowVideo: !state.isMobile },
+      {
+        allowVideo: !state.isMobile && isVideoPath(coverSrc),
+        objectFit: project?.id === "glbviewer" ? "fill" : undefined,
+      },
     );
   }
 }
@@ -885,7 +925,87 @@ function loadMedia(
   className = "slide-image",
   options = {},
 ) {
-  const { allowVideo = true } = options;
+  const { allowVideo = true, objectFit } = options;
+  const projectId = container?.dataset?.projectId;
+  const fit =
+    objectFit ||
+    (projectId === "glbviewer" ? "fill" : null);
+
+  const mountVideo = (videoSrc, onVidError) => {
+    const primarySrc =
+      state.isMobile && !/-mobile\./i.test(videoSrc)
+        ? getMobileVideoPath(videoSrc)
+        : videoSrc;
+    const fallbackSrc =
+      primarySrc !== videoSrc ? videoSrc : null;
+
+    const createAndPlay = (src, onFail) => {
+      const vid = document.createElement("video");
+      vid.className = className;
+      vid.muted = true;
+      vid.loop = true;
+      vid.autoplay = true;
+      vid.playsInline = true;
+      vid.preload = state.isMobile ? "metadata" : "auto";
+      if (fit === "fill") {
+        vid.style.objectFit = "fill";
+        vid.style.height = "100%";
+        vid.style.top = "0";
+        vid.style.backgroundColor = "transparent";
+      } else if (
+        fit === "cover" ||
+        className.includes("fill") ||
+        /fill(-mobile)?\.mp4$/i.test(src)
+      ) {
+        vid.style.objectFit = "cover";
+        vid.style.height = "100%";
+        vid.style.top = "0";
+      }
+
+      vid.onloadeddata = () => {
+        container.appendChild(vid);
+        vid.muted = true;
+        vid
+          .play()
+          .then(() => {
+            applyVideoSound(vid);
+          })
+          .catch(() => {});
+        if (onSuccess) onSuccess(vid);
+      };
+
+      vid.onerror = () => {
+        if (onFail) onFail();
+        else if (onVidError) onVidError();
+        else if (onError) onError();
+      };
+
+      vid.src = src;
+    };
+
+    createAndPlay(primarySrc, () => {
+      if (fallbackSrc) {
+        createAndPlay(fallbackSrc, () => {
+          if (onVidError) onVidError();
+          else if (onError) onError();
+        });
+      } else if (onVidError) {
+        onVidError();
+      } else if (onError) {
+        onError();
+      }
+    });
+  };
+
+  if (isVideoPath(src)) {
+    if (!allowVideo) {
+      if (onError) onError();
+      return;
+    }
+    mountVideo(src);
+    return;
+  }
+
   const img = new Image();
   img.className = className;
   img.decoding = "async";
@@ -901,49 +1021,9 @@ function loadMedia(
       return;
     }
 
-    const vidFill = document.createElement("video");
-    vidFill.className = className;
-    vidFill.muted = true;
-    vidFill.loop = true;
-    vidFill.autoplay = true;
-    vidFill.playsInline = true;
-    vidFill.preload = state.isMobile ? "metadata" : "auto";
-    vidFill.style.objectFit = "cover";
-    vidFill.style.height = "100%";
-    vidFill.style.top = "0";
-
-    vidFill.onloadeddata = () => {
-      container.appendChild(vidFill);
-      vidFill
-        .play()
-        .then(() => {
-          if (!state.isMuted && !state.isMobile) vidFill.muted = false;
-        })
-        .catch(() => {});
-      if (onSuccess) onSuccess(vidFill);
-    };
-
-    vidFill.onerror = () => {
-      const vid = document.createElement("video");
-      vid.className = className;
-      vid.muted = true;
-      vid.loop = true;
-      vid.autoplay = true;
-      vid.playsInline = true;
-      vid.preload = state.isMobile ? "metadata" : "auto";
-
-      vid.onloadeddata = () => {
-        container.appendChild(vid);
-        vid
-          .play()
-          .then(() => {
-            if (!state.isMuted && !state.isMobile) vid.muted = false;
-          })
-          .catch(() => {});
-        if (onSuccess) onSuccess(vid);
-      };
-
-      vid.onerror = () => {
+    const basePath = src.substring(0, src.lastIndexOf("."));
+    mountVideo(basePath + "fill.mp4", () => {
+      mountVideo(basePath + ".mp4", () => {
         const vidRot = document.createElement("video");
         vidRot.className = className + " rotate-90";
         vidRot.muted = true;
@@ -954,10 +1034,11 @@ function loadMedia(
 
         vidRot.onloadeddata = () => {
           container.appendChild(vidRot);
+          vidRot.muted = true;
           vidRot
             .play()
             .then(() => {
-              if (!state.isMuted && !state.isMobile) vidRot.muted = false;
+              applyVideoSound(vidRot);
             })
             .catch(() => {});
           if (onSuccess) onSuccess(vidRot);
@@ -967,16 +1048,9 @@ function loadMedia(
           if (onError) onError();
         };
 
-        const basePath = src.substring(0, src.lastIndexOf("."));
         vidRot.src = basePath + "-90.mp4";
-      };
-
-      const basePath = src.substring(0, src.lastIndexOf("."));
-      vid.src = basePath + ".mp4";
-    };
-
-    const basePath = src.substring(0, src.lastIndexOf("."));
-    vidFill.src = basePath + "fill.mp4";
+      });
+    });
   };
 
   img.src = src;
@@ -1435,6 +1509,7 @@ function createProjectBox(galleryIndex, x, y, boxId, options = {}) {
   container.dataset.boxId = boxId;
 
   const project = getProjectByGalleryIndex(galleryIndex);
+  if (project?.id) container.dataset.projectId = project.id;
 
   const mediaSrc = GALLERIES[galleryIndex][0];
 
@@ -1449,7 +1524,10 @@ function createProjectBox(galleryIndex, x, y, boxId, options = {}) {
           container.style.border = "1px solid #9ca3af";
         },
         "slide-image",
-        { allowVideo: !state.isMobile },
+        {
+          allowVideo: !state.isMobile || isVideoPath(mediaSrc),
+          objectFit: project?.id === "glbviewer" ? "fill" : undefined,
+        },
       );
     } else if (project?.blankCover) {
       const blank = document.createElement("div");
@@ -1496,21 +1574,37 @@ function zoomIn(element, options = {}) {
   const { expandToMax = false } = options;
   state.isZoomed = true;
   state.zoomedElement = element;
-  state.currentGalleryIndex = parseInt(element.dataset.galleryIndex);
-  state.currentSlideIndex = parseInt(element.dataset.slideIndex);
+  state.currentGalleryIndex = parseInt(element.dataset.galleryIndex, 10);
+  // Always start from the cover — same order every open
+  state.currentSlideIndex = 0;
+  element.dataset.slideIndex = "0";
+  state.slideRequestId = (state.slideRequestId || 0) + 1;
+  const openReqId = state.slideRequestId;
   const project = getProjectByGalleryIndex(state.currentGalleryIndex);
   const isEmbed = project?.type === "embed";
-  const boxId = parseInt(element.dataset.boxId);
+  const boxId = parseInt(element.dataset.boxId, 10);
   updateInfo(boxId);
 
   if (!isEmbed) {
     const gallery = GALLERIES[state.currentGalleryIndex];
-    // Mobile: swap trail thumb for full-res cover on open
-    if (state.isMobile && state.currentSlideIndex === 0 && gallery[0]) {
+    // Reload cover so reopen never keeps a leftover mid-gallery frame
+    if (gallery[0]) {
+      const coverIsVideo = isVideoPath(gallery[0]);
       loadMedia(
         gallery[0],
         element,
         (newEl) => {
+          if (openReqId !== state.slideRequestId) {
+            if (newEl.tagName === "VIDEO") {
+              try {
+                newEl.pause();
+                newEl.removeAttribute("src");
+                newEl.load();
+              } catch (err) {}
+            }
+            newEl.remove();
+            return;
+          }
           element.querySelectorAll(".slide-image").forEach((el) => {
             if (el === newEl) return;
             if (el.tagName === "VIDEO") {
@@ -1525,26 +1619,10 @@ function zoomIn(element, options = {}) {
         },
         () => {},
         "slide-image",
-        { allowVideo: false },
-      );
-    }
-    // Skip auto-loading the heavy GLB screen recording on mobile
-    if (
-      !state.isMobile &&
-      project?.id === "glbviewer" &&
-      gallery.length > 1
-    ) {
-      state.currentSlideIndex = 1;
-      element.dataset.slideIndex = 1;
-      loadMedia(
-        gallery[1],
-        element,
-        (newEl) => {
-          element.querySelectorAll(".slide-image").forEach((el) => {
-            if (el !== newEl) el.remove();
-          });
+        {
+          allowVideo: coverIsVideo || !state.isMobile,
+          objectFit: project?.id === "glbviewer" ? "fill" : undefined,
         },
-        () => {},
       );
     }
     preloadNeighbors(state.currentGalleryIndex, state.currentSlideIndex);
@@ -1654,6 +1732,10 @@ function zoomIn(element, options = {}) {
 }
 
 function addSwipeListener(element) {
+  // Prevent stacking listeners when opening the same project again
+  if (element.dataset.swipeBound === "1") return;
+  element.dataset.swipeBound = "1";
+
   let touchStartX = 0;
   let touchStartY = 0;
 
@@ -1669,6 +1751,7 @@ function addSwipeListener(element) {
   const handleTouchEnd = (e) => {
     element.removeEventListener("touchmove", handleTouchMove);
     element.removeEventListener("touchend", handleTouchEnd);
+    if (!state.isZoomed || state.zoomedElement !== element) return;
     const deltaX = e.changedTouches[0].clientX - touchStartX;
     if (deltaX < -50) changeSlide(1);
     else if (deltaX > 50) changeSlide(-1);
@@ -1677,6 +1760,7 @@ function addSwipeListener(element) {
 
   const handleTouchStart = (e) => {
     if (e.touches.length > 1) return;
+    if (!state.isZoomed || state.zoomedElement !== element) return;
     hideSwipeHint();
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
@@ -1703,13 +1787,14 @@ function handleSlideshowClick(e, element) {
 function changeSlide(direction, isAutoSkip = false) {
   if (!state.zoomedElement) return;
   if (isEmbedProject(state.currentGalleryIndex)) return;
+  const elementRef = state.zoomedElement;
   const gallery = GALLERIES[state.currentGalleryIndex];
   let nextIdx = state.currentSlideIndex + direction;
   if (nextIdx >= gallery.length) nextIdx = 0;
   if (nextIdx < 0) nextIdx = gallery.length - 1;
 
   state.currentSlideIndex = nextIdx;
-  state.zoomedElement.dataset.slideIndex = nextIdx;
+  elementRef.dataset.slideIndex = String(nextIdx);
   state.slideRequestId = (state.slideRequestId || 0) + 1;
   const reqId = state.slideRequestId;
 
@@ -1743,7 +1828,7 @@ function changeSlide(direction, isAutoSkip = false) {
     gallery[nextIdx],
     state.zoomedElement,
     (newEl) => {
-      if (reqId !== state.slideRequestId) {
+      if (reqId !== state.slideRequestId || state.zoomedElement !== elementRef) {
         if (newEl.tagName === "VIDEO") {
           try {
             newEl.pause();
@@ -1772,7 +1857,13 @@ function changeSlide(direction, isAutoSkip = false) {
       preloadNeighbors(state.currentGalleryIndex, nextIdx);
     },
     () => {
-      if (reqId === state.slideRequestId) changeSlide(direction, true);
+      // Only auto-skip missing slides while still on this open project
+      if (
+        reqId === state.slideRequestId &&
+        state.zoomedElement === elementRef
+      ) {
+        changeSlide(direction, true);
+      }
     },
   );
 }
@@ -1790,6 +1881,8 @@ function zoomOut() {
     state.isMobile && state.viewMode === "trail" && !state.aboutActive;
   state.isZoomed = false;
   state.zoomedElement = null;
+  state.currentSlideIndex = 0;
+  state.slideRequestId = (state.slideRequestId || 0) + 1;
   resetInfo();
   navScale.style.display = "none";
   navScale.classList.remove("flicker-anim");
