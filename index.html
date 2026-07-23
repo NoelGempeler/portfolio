@@ -554,7 +554,8 @@
         border-radius: 0;
         overflow: hidden;
         transform-origin: center center;
-        transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%) scale(var(--idle-scale, 1));
+        opacity: 1;
         transition:
           transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
           opacity 0.3s ease,
@@ -566,6 +567,19 @@
         background-color: #000;
         backface-visibility: hidden;
         -webkit-backface-visibility: hidden;
+      }
+
+      .trail-image.trail-spawn {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(calc(var(--idle-scale, 1) * 0.88));
+        transition:
+          transform 0.22s cubic-bezier(0.23, 1, 0.32, 1),
+          opacity 0.22s ease;
+      }
+
+      .trail-image.trail-spawn.trail-spawn-in {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(var(--idle-scale, 1));
       }
 
       .trail-image.no-transition {
@@ -611,7 +625,7 @@
       }
 
       body:not(.zoomed-active) .trail-image:hover {
-        transform: translate(-50%, -50%) scale(1.15);
+        transform: translate(-50%, -50%) scale(calc(var(--idle-scale, 1) * 1.15));
         z-index: 4010;
       }
 

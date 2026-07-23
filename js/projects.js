@@ -62,15 +62,6 @@ export const PROJECTS = [
       "<span class='caption-specs'>Editorial<span class='spec-sep'>|</span>2025<span class='spec-sep'>|</span></span>London is usually mapped by human needs, but for this collaborative publication, we shifted the narrative. Exploring the city through the senses of 88 different species, from the peregrine falcon surveying the Thames to the urban fox navigating by scent. The project challenges our anthropocentric view of the metropolis. Each student adopted the perspective of a specific animal, visualizing how landmarks become obstacles and streets become hunting grounds. The resulting book is a collective portrait of a hidden London, documenting the impossible but necessary attempt to see the city through eyes other than our own.",
   },
   {
-    id: "musikplakat",
-    name: "MASTER CONCERTS",
-    type: "gallery",
-    folder: "musikplakat",
-    slideCount: 8,
-    caption:
-      "<span class='caption-specs'>Moving Poster<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>For this campaign, I used TouchDesigner to translate the concept of resonance into a graphic system. The typography is rendered as a dispersing point cloud, creating a visual noise that implies frequency and vibration. This aesthetic tries to capture the dynamic atmosphere of the concerts, providing a fluid identity for both the poster and the motion design.",
-  },
-  {
     id: "paris",
     name: "PERDUS",
     type: "gallery",

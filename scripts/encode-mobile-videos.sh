@@ -38,8 +38,6 @@ NEED=(
   bilder/experimente/8fill.mp4
   bilder/experimente/9fill.mp4
   bilder/glbviewer/1fill.mp4
-  bilder/musikplakat/6.mp4
-  bilder/musikplakat/7.mp4
   bilder/ringwebsite/2.mp4
   bilder/tat/1fill.mp4
   bilder/tat/2fill.mp4

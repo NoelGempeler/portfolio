@@ -1333,52 +1333,78 @@ function refreshLoaderScale(element) {
   }
 }
 
-document.addEventListener("mousemove", (e) => {
-  if (state.isMobile) return;
+let pointerX = 0;
+let pointerY = 0;
+let pointerTarget = null;
+let pointerRaf = 0;
 
-  const cx = e.clientX;
-  const cy = e.clientY;
+document.addEventListener(
+  "pointermove",
+  (e) => {
+    if (state.isMobile) return;
+    if (e.pointerType === "touch") return;
+    pointerX = e.clientX;
+    pointerY = e.clientY;
+    pointerTarget = e.target;
+    if (!pointerRaf) {
+      pointerRaf = requestAnimationFrame(flushPointerFrame);
+    }
+  },
+  { passive: true },
+);
+
+function flushPointerFrame() {
+  pointerRaf = 0;
+  const cx = pointerX;
+  const cy = pointerY;
+  const target = pointerTarget;
 
   if (!state.hasEntered) {
-    customCursor.innerHTML = "+";
-    updateCustomCursor(cx, cy, 0);
+    if (customCursor) {
+      customCursor.innerHTML = "+";
+      updateCustomCursor(cx, cy, 0);
+    }
     return;
   }
 
   if (state.isLoading) return;
-  customCursor.style.left = cx + "px";
-  customCursor.style.top = cy + "px";
+  if (customCursor) {
+    customCursor.style.left = cx + "px";
+    customCursor.style.top = cy + "px";
 
-  let rotation = 0;
-  const isOverModel = e.target.tagName.toLowerCase() === "model-viewer";
+    let rotation = 0;
+    const isOverModel =
+      target && target.tagName && target.tagName.toLowerCase() === "model-viewer";
 
-  if (state.isZoomed && state.zoomedElement) {
-    const rect = state.zoomedElement.getBoundingClientRect();
-    const embedOpen = isEmbedProject(state.currentGalleryIndex);
-    if (
-      !embedOpen &&
-      cx >= rect.left &&
-      cx <= rect.right &&
-      cy >= rect.top &&
-      cy <= rect.bottom
-    ) {
-      const relX = cx - rect.left;
-      customCursor.innerHTML = relX < rect.width / 2 ? "&larr;" : "&rarr;";
+    if (state.isZoomed && state.zoomedElement) {
+      const rect = state.zoomedElement.getBoundingClientRect();
+      const embedOpen = isEmbedProject(state.currentGalleryIndex);
+      if (
+        !embedOpen &&
+        cx >= rect.left &&
+        cx <= rect.right &&
+        cy >= rect.top &&
+        cy <= rect.bottom
+      ) {
+        const relX = cx - rect.left;
+        customCursor.innerHTML = relX < rect.width / 2 ? "&larr;" : "&rarr;";
+        rotation = 0;
+      } else {
+        customCursor.innerHTML = "+";
+        rotation = 45;
+      }
+    } else if (isOverModel) {
+      customCursor.innerHTML = "+";
       rotation = 0;
     } else {
       customCursor.innerHTML = "+";
-      rotation = 45;
     }
-  } else if (isOverModel) {
-    customCursor.innerHTML = "+";
-    rotation = 0;
-  } else {
-    customCursor.innerHTML = "+";
+
+    customCursor.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
   }
 
-  customCursor.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
   handleTrailLogic(cx, cy);
-});
+}
 
 document.addEventListener(
   "touchmove",
@@ -1434,17 +1460,34 @@ function handleTrailLogic(cx, cy) {
   if (state.viewMode !== "trail") return;
   if (cy < CONFIG.navZoneHeight) return;
   if (state.isZoomed || canvas.classList.contains("hidden-canvas")) return;
-  if (!state.hasMoved) {
-    helperText.style.opacity = "0";
-    state.hasMoved = true;
-  }
-  const dist = Math.hypot(cx - state.lastX, cy - state.lastY);
+
   const limit = CONFIG.minDist;
-  if (dist > limit) {
-    createBox(cx, cy);
+
+  // First stroke: plant at cursor, don't interpolate from (0,0)
+  if (!state.hasMoved) {
+    if (helperText) helperText.style.opacity = "0";
+    state.hasMoved = true;
     state.lastX = cx;
     state.lastY = cy;
+    createBox(cx, cy);
+    return;
   }
+
+  const dist = Math.hypot(cx - state.lastX, cy - state.lastY);
+  if (dist < limit) return;
+
+  const steps = Math.floor(dist / limit);
+  const nx = (cx - state.lastX) / dist;
+  const ny = (cy - state.lastY) / dist;
+
+  for (let i = 1; i <= steps; i++) {
+    if (state.count >= CONFIG.maxImages) break;
+    createBox(state.lastX + nx * limit * i, state.lastY + ny * limit * i);
+  }
+
+  const advanced = steps * limit;
+  state.lastX += nx * advanced;
+  state.lastY += ny * advanced;
 }
 
 canvas.addEventListener("click", (e) => {
@@ -1567,7 +1610,19 @@ function createBox(x, y) {
   state.count++;
   const galleryIndex = (state.count - 1) % GALLERIES.length;
   const container = createProjectBox(galleryIndex, x, y, state.count);
+  container.classList.add("trail-spawn");
   canvas.appendChild(container);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      container.classList.add("trail-spawn-in");
+    });
+  });
+  const onSpawnEnd = (e) => {
+    if (e.propertyName !== "opacity" && e.propertyName !== "transform") return;
+    container.classList.remove("trail-spawn", "trail-spawn-in");
+    container.removeEventListener("transitionend", onSpawnEnd);
+  };
+  container.addEventListener("transitionend", onSpawnEnd);
 }
 
 function zoomIn(element, options = {}) {

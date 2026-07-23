@@ -2,7 +2,7 @@ export const CONFIG = {
   boxWidth: 200,
   boxHeight: 133,
   minDist: 120,
-  maxImages: 13,
+  maxImages: 12,
   navZoneHeight: 100,
   mobileScale: 0.75,
   mobileMinDist: 60,
