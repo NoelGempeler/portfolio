@@ -6,8 +6,8 @@ export const CONFIG = {
   navZoneHeight: 100,
   mobileScale: 0.75,
   mobileMinDist: 60,
-  mobileBoxWidth: 120,
-  mobileBoxHeight: 80,
+  mobileBoxWidth: 156,
+  mobileBoxHeight: 104,
   edgeGap: 0,
   mobileThumbConcurrency: 2,
 };

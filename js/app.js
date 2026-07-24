@@ -162,6 +162,11 @@ const navHome = document.getElementById("nav-home");
 const navAbout = document.getElementById("nav-about");
 const navSound = document.getElementById("nav-sound");
 const navScale = document.getElementById("nav-scale");
+const scaleHintGlow = document.getElementById("scale-hint-glow");
+const SCALE_HINT_DELAY_MS = 4000;
+let scaleHintTimeout = null;
+let scaleHintFromRight = false;
+let cursorAimScale = false;
 const navViewMode = document.getElementById("nav-view-mode");
 const navShuffle = document.getElementById("nav-shuffle");
 const footerText = document.getElementById("footer-text");
@@ -452,7 +457,30 @@ function preloadAllCovers() {
 preloadAllCovers();
 
 let lastHoverTime = 0;
+let trailDrawActive = false;
+let trailDrawTimeout = null;
+
 function playHoverSound() {
+  if (state.isMobile) return;
+  if (state.isMuted) return;
+  // Don't fire hover sounds while the trail is being drawn
+  if (trailDrawActive) return;
+  const now = Date.now();
+  const delta = now - lastHoverTime;
+  lastHoverTime = now;
+  const sound = hoverPool[hoverPoolIndex];
+  hoverPoolIndex = (hoverPoolIndex + 1) % HOVER_POOL_SIZE;
+  sound.pause();
+  sound.currentTime = 0;
+  if (delta < 200) {
+    sound.playbackRate = 1 + Math.max(0, (200 - delta) / 200);
+  } else {
+    sound.playbackRate = 1;
+  }
+  sound.play().catch(() => {});
+}
+
+function playPlaceSound() {
   if (state.isMobile) return;
   if (state.isMuted) return;
   const now = Date.now();
@@ -468,6 +496,14 @@ function playHoverSound() {
     sound.playbackRate = 1;
   }
   sound.play().catch(() => {});
+}
+
+function markTrailDrawing() {
+  trailDrawActive = true;
+  clearTimeout(trailDrawTimeout);
+  trailDrawTimeout = setTimeout(() => {
+    trailDrawActive = false;
+  }, 450);
 }
 
 function playToggleSound(e) {
@@ -1119,9 +1155,75 @@ navHome.addEventListener("click", (e) => {
 
 navScale.addEventListener("click", () => {
   if (!state.zoomedElement || state.isMobile) return;
-  navScale.classList.remove("flicker-anim");
+  clearScaleHint();
   applyScaleStep(state.zoomedElement);
 });
+
+function canScaleFurther(el) {
+  if (!el) return false;
+  const rect = el.getBoundingClientRect();
+  const footerRect = footerEl.getBoundingClientRect();
+  const limitBottom = footerRect.top - 4;
+  const fillsH =
+    Math.abs(rect.top) < 2 && Math.abs(rect.bottom - limitBottom) < 2;
+  const fillsW =
+    Math.abs(rect.left) < 2 && Math.abs(rect.right - window.innerWidth) < 2;
+  if (fillsH || fillsW) return false;
+  const room = Math.max(
+    rect.top,
+    limitBottom - rect.bottom,
+    rect.left,
+    window.innerWidth - rect.right,
+  );
+  return room > 6;
+}
+
+function clearScaleHint() {
+  if (scaleHintTimeout) {
+    clearTimeout(scaleHintTimeout);
+    scaleHintTimeout = null;
+  }
+  if (scaleHintGlow) scaleHintGlow.classList.remove("visible");
+  scaleHintFromRight = false;
+  cursorAimScale = false;
+}
+
+function positionScaleHintGlow() {
+  if (!scaleHintGlow || !navScale) return;
+  const rect = navScale.getBoundingClientRect();
+  scaleHintGlow.style.left = `${rect.left + rect.width / 2}px`;
+  scaleHintGlow.style.top = `${rect.top + rect.height / 2}px`;
+}
+
+function getScaleAimRotation(cx, cy) {
+  if (!navScale) return 0;
+  const rect = navScale.getBoundingClientRect();
+  const tx = rect.left + rect.width / 2;
+  const ty = rect.top + rect.height / 2;
+  return (Math.atan2(ty - cy, tx - cx) * 180) / Math.PI;
+}
+
+function triggerScaleHint(fromRight = false) {
+  if (state.isMobile || !state.zoomedElement) return;
+  if (!canScaleFurther(state.zoomedElement)) {
+    clearScaleHint();
+    return;
+  }
+  // Glow disabled for now — right-side browsing still aims cursor at scale
+  if (!fromRight) return;
+  scaleHintFromRight = true;
+
+  if (cursorAimScale) return;
+  if (scaleHintTimeout) return;
+
+  scaleHintTimeout = setTimeout(() => {
+    scaleHintTimeout = null;
+    if (!state.isZoomed || !state.zoomedElement || state.isMobile) return;
+    if (!canScaleFurther(state.zoomedElement)) return;
+    if (!scaleHintFromRight) return;
+    cursorAimScale = true;
+  }, SCALE_HINT_DELAY_MS);
+}
 
 function applyScaleStep(el) {
   const rect = el.getBoundingClientRect();
@@ -1266,6 +1368,7 @@ function applyScaleStep(el) {
   el.style.setProperty("--tx", state.currentTx + "px");
   el.style.setProperty("--ty", state.currentTy + "px");
   refreshLoaderScale(el);
+  if (!canScaleFurther(el)) clearScaleHint();
   return true;
 }
 
@@ -1333,78 +1436,63 @@ function refreshLoaderScale(element) {
   }
 }
 
-let pointerX = 0;
-let pointerY = 0;
-let pointerTarget = null;
-let pointerRaf = 0;
+document.addEventListener("mousemove", (e) => {
+  if (state.isMobile) return;
 
-document.addEventListener(
-  "pointermove",
-  (e) => {
-    if (state.isMobile) return;
-    if (e.pointerType === "touch") return;
-    pointerX = e.clientX;
-    pointerY = e.clientY;
-    pointerTarget = e.target;
-    if (!pointerRaf) {
-      pointerRaf = requestAnimationFrame(flushPointerFrame);
-    }
-  },
-  { passive: true },
-);
-
-function flushPointerFrame() {
-  pointerRaf = 0;
-  const cx = pointerX;
-  const cy = pointerY;
-  const target = pointerTarget;
+  const cx = e.clientX;
+  const cy = e.clientY;
 
   if (!state.hasEntered) {
-    if (customCursor) {
-      customCursor.innerHTML = "+";
-      updateCustomCursor(cx, cy, 0);
-    }
+    customCursor.innerHTML = "+";
+    updateCustomCursor(cx, cy, 0);
     return;
   }
 
   if (state.isLoading) return;
-  if (customCursor) {
-    customCursor.style.left = cx + "px";
-    customCursor.style.top = cy + "px";
+  customCursor.style.left = cx + "px";
+  customCursor.style.top = cy + "px";
 
-    let rotation = 0;
-    const isOverModel =
-      target && target.tagName && target.tagName.toLowerCase() === "model-viewer";
+  let rotation = 0;
+  const isOverModel = e.target.tagName.toLowerCase() === "model-viewer";
 
-    if (state.isZoomed && state.zoomedElement) {
-      const rect = state.zoomedElement.getBoundingClientRect();
-      const embedOpen = isEmbedProject(state.currentGalleryIndex);
-      if (
-        !embedOpen &&
-        cx >= rect.left &&
-        cx <= rect.right &&
-        cy >= rect.top &&
-        cy <= rect.bottom
-      ) {
-        const relX = cx - rect.left;
-        customCursor.innerHTML = relX < rect.width / 2 ? "&larr;" : "&rarr;";
-        rotation = 0;
-      } else {
-        customCursor.innerHTML = "+";
-        rotation = 45;
-      }
-    } else if (isOverModel) {
-      customCursor.innerHTML = "+";
+  if (state.isZoomed && state.zoomedElement) {
+    const rect = state.zoomedElement.getBoundingClientRect();
+    const embedOpen = isEmbedProject(state.currentGalleryIndex);
+    const overImage =
+      !embedOpen &&
+      cx >= rect.left &&
+      cx <= rect.right &&
+      cy >= rect.top &&
+      cy <= rect.bottom;
+    const onLeftHalf = overImage && cx - rect.left < rect.width / 2;
+
+    if (onLeftHalf) {
+      // Left side always slides back — never aim at scale here
+      customCursor.innerHTML = "&larr;";
+      rotation = 0;
+    } else if (cursorAimScale && navScale) {
+      customCursor.innerHTML = "&rarr;";
+      rotation = getScaleAimRotation(cx, cy);
+    } else if (overImage) {
+      customCursor.innerHTML = "&rarr;";
       rotation = 0;
     } else {
       customCursor.innerHTML = "+";
+      rotation = 45;
     }
-
-    customCursor.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
+  } else if (cursorAimScale && navScale) {
+    customCursor.innerHTML = "&rarr;";
+    rotation = getScaleAimRotation(cx, cy);
+  } else if (isOverModel) {
+    customCursor.innerHTML = "+";
+    rotation = 0;
+  } else {
+    customCursor.innerHTML = "+";
   }
 
+  customCursor.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
   handleTrailLogic(cx, cy);
-}
+});
 
 document.addEventListener(
   "touchmove",
@@ -1460,34 +1548,17 @@ function handleTrailLogic(cx, cy) {
   if (state.viewMode !== "trail") return;
   if (cy < CONFIG.navZoneHeight) return;
   if (state.isZoomed || canvas.classList.contains("hidden-canvas")) return;
-
-  const limit = CONFIG.minDist;
-
-  // First stroke: plant at cursor, don't interpolate from (0,0)
   if (!state.hasMoved) {
-    if (helperText) helperText.style.opacity = "0";
+    helperText.style.opacity = "0";
     state.hasMoved = true;
+  }
+  const dist = Math.hypot(cx - state.lastX, cy - state.lastY);
+  const limit = CONFIG.minDist;
+  if (dist > limit) {
+    createBox(cx, cy);
     state.lastX = cx;
     state.lastY = cy;
-    createBox(cx, cy);
-    return;
   }
-
-  const dist = Math.hypot(cx - state.lastX, cy - state.lastY);
-  if (dist < limit) return;
-
-  const steps = Math.floor(dist / limit);
-  const nx = (cx - state.lastX) / dist;
-  const ny = (cy - state.lastY) / dist;
-
-  for (let i = 1; i <= steps; i++) {
-    if (state.count >= CONFIG.maxImages) break;
-    createBox(state.lastX + nx * limit * i, state.lastY + ny * limit * i);
-  }
-
-  const advanced = steps * limit;
-  state.lastX += nx * advanced;
-  state.lastY += ny * advanced;
 }
 
 canvas.addEventListener("click", (e) => {
@@ -1610,19 +1681,9 @@ function createBox(x, y) {
   state.count++;
   const galleryIndex = (state.count - 1) % GALLERIES.length;
   const container = createProjectBox(galleryIndex, x, y, state.count);
-  container.classList.add("trail-spawn");
   canvas.appendChild(container);
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      container.classList.add("trail-spawn-in");
-    });
-  });
-  const onSpawnEnd = (e) => {
-    if (e.propertyName !== "opacity" && e.propertyName !== "transform") return;
-    container.classList.remove("trail-spawn", "trail-spawn-in");
-    container.removeEventListener("transitionend", onSpawnEnd);
-  };
-  container.addEventListener("transitionend", onSpawnEnd);
+  markTrailDrawing();
+  playPlaceSound();
 }
 
 function zoomIn(element, options = {}) {
@@ -1783,7 +1844,7 @@ function zoomIn(element, options = {}) {
   }
 
   navScale.style.display = "block";
-  navScale.classList.remove("flicker-anim");
+  clearScaleHint();
 }
 
 function addSwipeListener(element) {
@@ -1856,6 +1917,10 @@ function changeSlide(direction, isAutoSkip = false) {
   if (!state.isMuted && !state.isMobile && !isAutoSkip) {
     skipSound.currentTime = 0;
     skipSound.play().catch(() => {});
+  }
+
+  if (!isAutoSkip && !state.isMobile) {
+    triggerScaleHint(direction === 1);
   }
 
   if (!isAutoSkip) {
@@ -1940,7 +2005,7 @@ function zoomOut() {
   state.slideRequestId = (state.slideRequestId || 0) + 1;
   resetInfo();
   navScale.style.display = "none";
-  navScale.classList.remove("flicker-anim");
+  clearScaleHint();
   document.body.classList.remove("zoomed-active");
 
   const zoomedEl = document.querySelector(".trail-image.zoomed");
