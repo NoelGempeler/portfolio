@@ -164,9 +164,12 @@ const navSound = document.getElementById("nav-sound");
 const navScale = document.getElementById("nav-scale");
 const scaleHintGlow = document.getElementById("scale-hint-glow");
 const SCALE_HINT_DELAY_MS = 4000;
+const SCALE_CURSOR_NEAR_PX = 72;
 let scaleHintTimeout = null;
 let scaleHintFromRight = false;
 let cursorAimScale = false;
+/** Once the user clicks scale this zoom, never re-aim at it */
+let scaleHintDismissed = false;
 const navViewMode = document.getElementById("nav-view-mode");
 const navShuffle = document.getElementById("nav-shuffle");
 const footerText = document.getElementById("footer-text");
@@ -1155,6 +1158,7 @@ navHome.addEventListener("click", (e) => {
 
 navScale.addEventListener("click", () => {
   if (!state.zoomedElement || state.isMobile) return;
+  scaleHintDismissed = true;
   clearScaleHint();
   applyScaleStep(state.zoomedElement);
 });
@@ -1188,6 +1192,11 @@ function clearScaleHint() {
   cursorAimScale = false;
 }
 
+function resetScaleHintSession() {
+  clearScaleHint();
+  scaleHintDismissed = false;
+}
+
 function positionScaleHintGlow() {
   if (!scaleHintGlow || !navScale) return;
   const rect = navScale.getBoundingClientRect();
@@ -1203,8 +1212,22 @@ function getScaleAimRotation(cx, cy) {
   return (Math.atan2(ty - cy, tx - cx) * 180) / Math.PI;
 }
 
+function isNearScaleButton(cx, cy) {
+  if (!navScale || navScale.style.display === "none") return false;
+  const rect = navScale.getBoundingClientRect();
+  if (rect.width === 0 && rect.height === 0) return false;
+  const pad = SCALE_CURSOR_NEAR_PX;
+  return (
+    cx >= rect.left - pad &&
+    cx <= rect.right + pad &&
+    cy >= rect.top - pad &&
+    cy <= rect.bottom + pad
+  );
+}
+
 function triggerScaleHint(fromRight = false) {
   if (state.isMobile || !state.zoomedElement) return;
+  if (scaleHintDismissed) return;
   if (!canScaleFurther(state.zoomedElement)) {
     clearScaleHint();
     return;
@@ -1218,6 +1241,7 @@ function triggerScaleHint(fromRight = false) {
 
   scaleHintTimeout = setTimeout(() => {
     scaleHintTimeout = null;
+    if (scaleHintDismissed) return;
     if (!state.isZoomed || !state.zoomedElement || state.isMobile) return;
     if (!canScaleFurther(state.zoomedElement)) return;
     if (!scaleHintFromRight) return;
@@ -1454,8 +1478,13 @@ document.addEventListener("mousemove", (e) => {
 
   let rotation = 0;
   const isOverModel = e.target.tagName.toLowerCase() === "model-viewer";
+  const nearScale = isNearScaleButton(cx, cy);
 
-  if (state.isZoomed && state.zoomedElement) {
+  if (nearScale) {
+    // Near scale: normal + so the button is easy to hit
+    customCursor.innerHTML = "+";
+    rotation = 0;
+  } else if (state.isZoomed && state.zoomedElement) {
     const rect = state.zoomedElement.getBoundingClientRect();
     const embedOpen = isEmbedProject(state.currentGalleryIndex);
     const overImage =
@@ -1844,7 +1873,7 @@ function zoomIn(element, options = {}) {
   }
 
   navScale.style.display = "block";
-  clearScaleHint();
+  resetScaleHintSession();
 }
 
 function addSwipeListener(element) {
@@ -2005,7 +2034,7 @@ function zoomOut() {
   state.slideRequestId = (state.slideRequestId || 0) + 1;
   resetInfo();
   navScale.style.display = "none";
-  clearScaleHint();
+  resetScaleHintSession();
   document.body.classList.remove("zoomed-active");
 
   const zoomedEl = document.querySelector(".trail-image.zoomed");
