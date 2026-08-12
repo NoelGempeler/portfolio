@@ -1,7 +1,180 @@
 import { CONFIG, VIEW_MODE_KEY } from "./config.js";
-import { PROJECTS, GALLERIES, getCoverPath, getMobileCoverPath, isVideoPath, getMobileVideoPath } from "./projects.js";
+import {
+  PROJECTS,
+  GALLERIES,
+  getCoverPath,
+  getMobileCoverPath,
+  getScrubPaths,
+  isVideoPath,
+  getMobileVideoPath,
+} from "./projects.js";
 
 console.log("Application initializing...");
+
+/**
+ * Tab mood set (sad → happy). Used for title wave + single favicon cycle.
+ */
+const TAB_MOOD_LEVELS = ["😔", "🙁", "🙂", "😄"];
+
+const TAB_SLOT_COUNT = 5;
+const TAB_EMOJI_INTERVAL_MS = 260;
+let tabMoodFrame = 0;
+let tabMoodFrames = [];
+let tabFaviconMood = 0;
+let tabMoodTimer = null;
+let tabTitleFlip = false;
+let tabFaviconIsDefault = false;
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+/**
+ * Parallel diagonal wave — rise then fall (no all-sad snap).
+ * L→R up, L→R down, R→L up, R→L down, loop.
+ */
+function buildTabMoodFrames(levels) {
+  const max = levels.length - 1;
+  const frames = [];
+  let prev = "";
+
+  const push = (state) => {
+    const next = state.map((lv) => levels[lv]).join("");
+    if (next === prev) return;
+    frames.push(next);
+    prev = next;
+  };
+
+  const riseLeft = (t) => {
+    const state = [];
+    for (let i = 0; i < TAB_SLOT_COUNT; i++) {
+      state.push(clamp(t - i, 0, max));
+    }
+    return state;
+  };
+
+  const riseRight = (t) => {
+    const state = [];
+    for (let i = 0; i < TAB_SLOT_COUNT; i++) {
+      state.push(clamp(t - (TAB_SLOT_COUNT - 1 - i), 0, max));
+    }
+    return state;
+  };
+
+  const steps = TAB_SLOT_COUNT + max;
+
+  // L→R rise
+  for (let t = 0; t <= steps; t++) push(riseLeft(t));
+  // L→R fall (left leads back down)
+  for (let t = 1; t <= steps; t++) {
+    push(riseLeft(steps - t));
+  }
+
+  // R→L rise
+  for (let t = 1; t <= steps; t++) push(riseRight(t));
+  // R→L fall (right leads back down)
+  for (let t = 1; t <= steps; t++) {
+    push(riseRight(steps - t));
+  }
+
+  return frames;
+}
+
+function emojiToFaviconHref(emoji) {
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+  ctx.clearRect(0, 0, size, size);
+  ctx.font = `48px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(emoji, size / 2, size / 2 + 1);
+  return canvas.toDataURL("image/png");
+}
+
+function ensureTabFaviconLink() {
+  let link = document.getElementById("favicon");
+  if (link) return link;
+  link = document.createElement("link");
+  link.id = "favicon";
+  link.rel = "icon";
+  link.type = "image/png";
+  document.head.appendChild(link);
+  return link;
+}
+
+function setTabFaviconEmoji(emoji) {
+  const href = emojiToFaviconHref(emoji);
+  if (!href) return;
+  tabFaviconIsDefault = false;
+  const link = ensureTabFaviconLink();
+  link.type = "image/png";
+  link.href = href;
+}
+
+function setTabFaviconBrowserDefault() {
+  if (tabFaviconIsDefault) return;
+  const link = document.getElementById("favicon");
+  if (link) link.remove();
+  tabFaviconIsDefault = true;
+}
+
+function rebuildTabMoodFrames() {
+  tabMoodFrames = buildTabMoodFrames(TAB_MOOD_LEVELS);
+  tabMoodFrame = 0;
+}
+
+/** Browsers often ignore identical title sets — flip ZWSP so every tick applies. */
+function setTabTitle(text) {
+  tabTitleFlip = !tabTitleFlip;
+  document.title = tabTitleFlip ? text : `${text}\u200B`;
+}
+
+function updateEmojiTabTitle() {
+  if (!tabMoodFrames.length) rebuildTabMoodFrames();
+
+  if (window.innerWidth < 800) {
+    const mood = TAB_MOOD_LEVELS[tabFaviconMood % TAB_MOOD_LEVELS.length];
+    setTabFaviconEmoji(mood);
+    setTabTitle(mood);
+    tabFaviconMood = (tabFaviconMood + 1) % TAB_MOOD_LEVELS.length;
+    return;
+  }
+
+  setTabFaviconBrowserDefault();
+  const len = tabMoodFrames.length;
+  if (!len) return;
+  // Explicit wrap so the wave clearly restarts
+  if (tabMoodFrame >= len) tabMoodFrame = 0;
+  setTabTitle(tabMoodFrames[tabMoodFrame]);
+  tabMoodFrame += 1;
+  if (tabMoodFrame >= len) tabMoodFrame = 0;
+}
+
+function scheduleTabMoodTick() {
+  if (tabMoodTimer) clearTimeout(tabMoodTimer);
+  tabMoodTimer = setTimeout(() => {
+    updateEmojiTabTitle();
+    scheduleTabMoodTick();
+  }, TAB_EMOJI_INTERVAL_MS);
+}
+
+function startEmojiTabTitle() {
+  rebuildTabMoodFrames();
+  updateEmojiTabTitle();
+  scheduleTabMoodTick();
+  window.addEventListener("resize", () => {
+    // Don't advance on resize — just refresh favicon mode
+    if (window.innerWidth < 800) {
+      tabFaviconIsDefault = false;
+    }
+  });
+}
+
+startEmojiTabTitle();
 
 if (navigator.userAgent.includes("Instagram")) {
   const overlay = document.createElement("div");
@@ -152,6 +325,19 @@ const zoomSound = new Audio("sounds/zoom.mp3");
 zoomSound.preload = "auto";
 const skipSound = new Audio("sounds/skip.mp3");
 skipSound.preload = "auto";
+const blingSound = new Audio("sounds/bling.mp3");
+blingSound.preload = "auto";
+blingSound.volume = 1.0;
+
+const NOTIFY_POOL_SIZE = 3;
+const notifyPool = [];
+let notifyPoolIndex = 0;
+for (let i = 0; i < NOTIFY_POOL_SIZE; i++) {
+  const a = new Audio("sounds/notification.mp3");
+  a.preload = "auto";
+  a.volume = 0.18;
+  notifyPool.push(a);
+}
 
 const canvas = document.getElementById("canvas");
 const aboutPage = document.getElementById("about-page");
@@ -165,10 +351,12 @@ const navScale = document.getElementById("nav-scale");
 const scaleHintGlow = document.getElementById("scale-hint-glow");
 const SCALE_HINT_DELAY_MS = 4000;
 const SCALE_CURSOR_NEAR_PX = 72;
+const SCALE_SAD_EMOJIS = ["😔", "🙁", "😢", "😞", "😟", "😕"];
+const SCALE_HAPPY_EMOJIS = ["😄", "🙂", "😊", "😁", "🤩", "✨"];
 let scaleHintTimeout = null;
 let scaleHintFromRight = false;
-let cursorAimScale = false;
-/** Once the user clicks scale this zoom, never re-aim at it */
+let scaleEmojiTimeout = null;
+/** Once the user clicks scale this zoom, never re-hint */
 let scaleHintDismissed = false;
 const navViewMode = document.getElementById("nav-view-mode");
 const navShuffle = document.getElementById("nav-shuffle");
@@ -190,6 +378,46 @@ function activateWelcomeCursor() {
   if (!state.isMobile && customCursor && welcomeScreen) {
     customCursor.classList.add("cursor-active");
   }
+}
+
+const WELCOME_PLUS_MIN_DIST = 18;
+const WELCOME_DRAW_EMOJIS = ["😔", "🙁", "🙂", "😄", "😊", "✨"];
+let welcomePlusLastX = null;
+let welcomePlusLastY = null;
+let welcomeStampCount = 0;
+
+function stampWelcomePlus(cx, cy) {
+  if (!welcomeScreen || state.hasEntered || state.isMobile) return;
+  if (welcomePlusLastX != null) {
+    const dist = Math.hypot(cx - welcomePlusLastX, cy - welcomePlusLastY);
+    if (dist < WELCOME_PLUS_MIN_DIST) return;
+
+    // Longer draw → more likely to drop an emoji between pluses
+    const chance = Math.min(0.55, 0.04 + welcomeStampCount * 0.012);
+    if (Math.random() < chance) {
+      const t = 0.35 + Math.random() * 0.3;
+      const ex = welcomePlusLastX + (cx - welcomePlusLastX) * t;
+      const ey = welcomePlusLastY + (cy - welcomePlusLastY) * t;
+      const emoji = document.createElement("span");
+      emoji.className = "welcome-plus-mark welcome-draw-emoji";
+      emoji.textContent =
+        WELCOME_DRAW_EMOJIS[
+          Math.floor(Math.random() * WELCOME_DRAW_EMOJIS.length)
+        ];
+      emoji.style.left = `${ex}px`;
+      emoji.style.top = `${ey}px`;
+      welcomeScreen.appendChild(emoji);
+    }
+  }
+  welcomePlusLastX = cx;
+  welcomePlusLastY = cy;
+  welcomeStampCount += 1;
+  const mark = document.createElement("span");
+  mark.className = "welcome-plus-mark";
+  mark.textContent = "+";
+  mark.style.left = `${cx}px`;
+  mark.style.top = `${cy}px`;
+  welcomeScreen.appendChild(mark);
 }
 
 function getProjectByBoxId(boxId) {
@@ -226,6 +454,12 @@ function setSoundMuted(muted) {
 /** Keep video playback in sync with mute UI (especially on mobile). */
 function applyVideoSound(video) {
   if (!video) return;
+  // Trail hover previews stay silent always
+  if (video.classList.contains("trail-hover-video")) {
+    video.muted = true;
+    video.volume = 0;
+    return;
+  }
   if (state.isMuted) {
     video.muted = true;
     return;
@@ -394,6 +628,7 @@ const checkMobile = () => {
   }
   if (wasMobile !== state.isMobile) {
     updateHelperText();
+    if (state.aboutActive) configureAboutModel();
     if (
       state.isMobile &&
       state.hasEntered &&
@@ -503,6 +738,7 @@ function playPlaceSound() {
 
 function markTrailDrawing() {
   trailDrawActive = true;
+  stopAllHoverScrubs();
   clearTimeout(trailDrawTimeout);
   trailDrawTimeout = setTimeout(() => {
     trailDrawActive = false;
@@ -547,7 +783,11 @@ navHome.addEventListener("mouseenter", playHoverSound);
 navCenter.addEventListener("mouseenter", playHoverSound);
 navAbout.addEventListener("mouseenter", playHoverSound);
 navSound.addEventListener("mouseenter", playHoverSound);
-navScale.addEventListener("mouseenter", playHoverSound);
+navScale.addEventListener("mouseenter", () => {
+  playHoverSound();
+  startScaleHoverSprinkle();
+});
+navScale.addEventListener("mouseleave", stopScaleHoverSprinkle);
 if (navViewMode) navViewMode.addEventListener("mouseenter", playHoverSound);
 if (navShuffle) navShuffle.addEventListener("mouseenter", playHoverSound);
 
@@ -571,44 +811,39 @@ if (navViewMode) {
   });
 }
 
-const onProgress = (event) => {
-  const progressBar = event.target.querySelector(".progress-bar");
-  const updatingBar = event.target.querySelector(".update-bar");
-  if (updatingBar) {
-    updatingBar.style.width = `${event.detail.totalProgress * 100}%`;
-  }
-  if (event.detail.totalProgress === 1) {
-    if (progressBar) progressBar.classList.add("hide");
-    event.target.removeEventListener("progress", onProgress);
-  } else {
-    if (progressBar) progressBar.classList.remove("hide");
-  }
-};
 const modelViewer = document.querySelector("model-viewer");
 
+const ABOUT_ORBIT_THETA = "180deg";
 const ABOUT_ORBIT_PHI = "75deg";
-const ABOUT_ORBIT_RADIUS_MOBILE = "95%";
-const ABOUT_ORBIT_RADIUS_DESKTOP = "110%";
-const ABOUT_SCALE_MOBILE = "0.96 0.96 0.96"; // 0.8 × 1.2
-const ABOUT_SCALE_DESKTOP = "0.8 0.8 0.8";
+// Closer camera = scan appears larger in frame (scale alone was fighting updateFraming)
+const ABOUT_ORBIT_RADIUS_MOBILE = "55%";
+const ABOUT_ORBIT_RADIUS_DESKTOP = "64%";
+const ABOUT_SCALE_MOBILE = "1.6128 1.6128 1.6128";
+const ABOUT_SCALE_DESKTOP = "1.6128 1.6128 1.6128";
+/** Look-at nudged right so framing sits a bit left of center */
+const ABOUT_CAMERA_TARGET = "0.24m auto auto";
 
 function configureAboutModel() {
   if (!modelViewer) return;
   modelViewer.setAttribute("camera-controls", "");
   modelViewer.setAttribute("touch-action", "none");
+  modelViewer.cameraTarget = ABOUT_CAMERA_TARGET;
   if (state.isMobile) {
     modelViewer.scale = ABOUT_SCALE_MOBILE;
-    modelViewer.cameraOrbit = `0deg ${ABOUT_ORBIT_PHI} ${ABOUT_ORBIT_RADIUS_MOBILE}`;
+    modelViewer.cameraOrbit = `${ABOUT_ORBIT_THETA} ${ABOUT_ORBIT_PHI} ${ABOUT_ORBIT_RADIUS_MOBILE}`;
     modelViewer.fieldOfView = "30deg";
   } else {
     modelViewer.scale = ABOUT_SCALE_DESKTOP;
-    modelViewer.cameraOrbit = `0deg ${ABOUT_ORBIT_PHI} ${ABOUT_ORBIT_RADIUS_DESKTOP}`;
+    modelViewer.cameraOrbit = `${ABOUT_ORBIT_THETA} ${ABOUT_ORBIT_PHI} ${ABOUT_ORBIT_RADIUS_DESKTOP}`;
     modelViewer.fieldOfView = "30deg";
   }
+  // Don't call updateFraming() — it pulls the camera back and cancels “bigger” sizing
+  requestAnimationFrame(() => {
+    window.dispatchEvent(new Event("resize"));
+  });
 }
 
 if (modelViewer) {
-  modelViewer.addEventListener("progress", onProgress);
   modelViewer.addEventListener("load", () => {
     configureAboutModel();
   });
@@ -620,8 +855,8 @@ function updateAboutScrollSpin() {
   try {
     const orbit = modelViewer.getCameraOrbit();
     if (!orbit) return;
-    // Scroll only yaws — keep current elevation + zoom from finger/pinch
-    const yaw = -aboutPage.scrollTop * 0.004;
+    // Start facing 180°, scroll only yaws from there
+    const yaw = Math.PI - aboutPage.scrollTop * 0.004;
     const phi = Number.isFinite(orbit.phi)
       ? `${orbit.phi}rad`
       : ABOUT_ORBIT_PHI;
@@ -1160,6 +1395,7 @@ navScale.addEventListener("click", () => {
   if (!state.zoomedElement || state.isMobile) return;
   scaleHintDismissed = true;
   clearScaleHint();
+  fireScaleEmojiPop(SCALE_HAPPY_EMOJIS, 6 + Math.floor(Math.random() * 4));
   applyScaleStep(state.zoomedElement);
 });
 
@@ -1187,9 +1423,14 @@ function clearScaleHint() {
     clearTimeout(scaleHintTimeout);
     scaleHintTimeout = null;
   }
+  if (scaleEmojiTimeout) {
+    clearTimeout(scaleEmojiTimeout);
+    scaleEmojiTimeout = null;
+  }
+  stopScaleHoverSprinkle();
   if (scaleHintGlow) scaleHintGlow.classList.remove("visible");
+  document.querySelectorAll(".scale-emoji-pop").forEach((el) => el.remove());
   scaleHintFromRight = false;
-  cursorAimScale = false;
 }
 
 function resetScaleHintSession() {
@@ -1202,14 +1443,6 @@ function positionScaleHintGlow() {
   const rect = navScale.getBoundingClientRect();
   scaleHintGlow.style.left = `${rect.left + rect.width / 2}px`;
   scaleHintGlow.style.top = `${rect.top + rect.height / 2}px`;
-}
-
-function getScaleAimRotation(cx, cy) {
-  if (!navScale) return 0;
-  const rect = navScale.getBoundingClientRect();
-  const tx = rect.left + rect.width / 2;
-  const ty = rect.top + rect.height / 2;
-  return (Math.atan2(ty - cy, tx - cx) * 180) / Math.PI;
 }
 
 function isNearScaleButton(cx, cy) {
@@ -1225,6 +1458,356 @@ function isNearScaleButton(cx, cy) {
   );
 }
 
+/**
+ * @param {string[]} [emojis]
+ * @param {{ x?: number, y?: number, dx?: number, dy?: number, rot?: number }} [opts]
+ */
+function spawnScaleEmoji(emojis = SCALE_SAD_EMOJIS, opts = {}) {
+  let ox = opts.x;
+  let oy = opts.y;
+  if (ox == null || oy == null) {
+    if (!navScale || navScale.style.display === "none") return;
+    const rect = navScale.getBoundingClientRect();
+    ox = rect.left + rect.width / 2;
+    oy = rect.top + rect.height / 2;
+  }
+
+  const dx = opts.dx != null ? opts.dx : (Math.random() - 0.5) * 160;
+  const dy = opts.dy != null ? opts.dy : 48 + Math.random() * 110;
+  const rot = opts.rot != null ? opts.rot : (Math.random() - 0.5) * 56;
+
+  const el = document.createElement("span");
+  el.className = "scale-emoji-pop";
+  el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+  el.style.left = `${ox}px`;
+  el.style.top = `${oy}px`;
+  el.style.setProperty("--dx", `${dx}px`);
+  el.style.setProperty("--dy", `${dy}px`);
+  el.style.setProperty("--rot", `${rot}deg`);
+  document.body.appendChild(el);
+  el.addEventListener("animationend", () => el.remove());
+}
+
+/** One-shot pop from the scale button (happy on scale click). */
+function fireScaleEmojiPop(emojis, count) {
+  let delay = 0;
+  for (let i = 0; i < count; i++) {
+    delay += 20 + Math.random() * 35;
+    setTimeout(() => spawnScaleEmoji(emojis), delay);
+  }
+}
+
+const TRAIL_BURST_EMOJIS = [...SCALE_SAD_EMOJIS, ...SCALE_HAPPY_EMOJIS];
+/** @type {{ el: HTMLElement, x: number, y: number, vx: number, vy: number, rot: number, vr: number, r: number, born: number, maxLife: number }[]} */
+const trailBurstParticles = [];
+let trailBurstRaf = null;
+let trailBurstLastTs = 0;
+let trailBurstGen = 0;
+
+function getTrailObstacleRects() {
+  return Array.from(
+    document.querySelectorAll(".trail-image:not(.zoomed)"),
+  )
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        left: r.left,
+        top: r.top,
+        right: r.right,
+        bottom: r.bottom,
+      };
+    })
+    .filter((r) => r.right > r.left + 2 && r.bottom > r.top + 2);
+}
+
+/** Circle vs trail-box AABB — push out + bounce. Returns true if bounced. */
+function collideParticleWithTrailBoxes(p, boxes, bounce) {
+  let hit = false;
+  for (let b = 0; b < boxes.length; b++) {
+    const box = boxes[b];
+    const nearestX = Math.max(box.left, Math.min(p.x, box.right));
+    const nearestY = Math.max(box.top, Math.min(p.y, box.bottom));
+    let dx = p.x - nearestX;
+    let dy = p.y - nearestY;
+    const distSq = dx * dx + dy * dy;
+    if (distSq >= p.r * p.r) continue;
+
+    if (distSq < 0.0001) {
+      const dl = p.x - box.left;
+      const dr = box.right - p.x;
+      const dt = p.y - box.top;
+      const db = box.bottom - p.y;
+      const m = Math.min(dl, dr, dt, db);
+      if (m === dl) {
+        p.x = box.left - p.r;
+        p.vx = -Math.abs(p.vx) * bounce;
+      } else if (m === dr) {
+        p.x = box.right + p.r;
+        p.vx = Math.abs(p.vx) * bounce;
+      } else if (m === dt) {
+        p.y = box.top - p.r;
+        p.vy = -Math.abs(p.vy) * bounce;
+      } else {
+        p.y = box.bottom + p.r;
+        p.vy = Math.abs(p.vy) * bounce;
+      }
+      hit = true;
+      continue;
+    }
+
+    const dist = Math.sqrt(distSq);
+    const nx = dx / dist;
+    const ny = dy / dist;
+    const overlap = p.r - dist;
+    p.x += nx * overlap;
+    p.y += ny * overlap;
+    const vn = p.vx * nx + p.vy * ny;
+    if (vn < 0) {
+      p.vx -= (1 + bounce) * vn * nx;
+      p.vy -= (1 + bounce) * vn * ny;
+      hit = true;
+    }
+  }
+  return hit;
+}
+
+/** Real notification sample — pooled + rate-limited (high-velocity bounces only). */
+let bounceSoundsThisFrame = 0;
+let lastGlobalBounceSoundAt = 0;
+const BOUNCE_SOUNDS_PER_FRAME = 2;
+
+function playSoftBounceBling(impact = 1) {
+  if (state.isMobile || state.isMuted) return;
+  if (bounceSoundsThisFrame >= BOUNCE_SOUNDS_PER_FRAME) return;
+  const now = performance.now();
+  if (now - lastGlobalBounceSoundAt < 40) return;
+  lastGlobalBounceSoundAt = now;
+  bounceSoundsThisFrame += 1;
+
+  const sound = notifyPool[notifyPoolIndex];
+  notifyPoolIndex = (notifyPoolIndex + 1) % NOTIFY_POOL_SIZE;
+  sound.pause();
+  sound.currentTime = 0;
+  sound.volume = Math.min(0.28, 0.12 + impact * 0.015);
+  sound.play().catch(() => {});
+}
+
+function maybePlayBounceSound(p, now) {
+  if (now - (p.lastBounceSoundAt || 0) < 90) return;
+  const speed = Math.hypot(p.vx, p.vy);
+  // Only somewhat firm hits — crawl/settle still quiet
+  if (speed < 1.1) return;
+  p.lastBounceSoundAt = now;
+  playSoftBounceBling(speed);
+}
+
+function spawnTrailBurstParticle(cx, cy, emojis, gen) {
+  if (gen !== trailBurstGen) return;
+  const el = document.createElement("span");
+  el.className = "trail-emoji-burst";
+  el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+  el.style.left = `${cx}px`;
+  el.style.top = `${cy}px`;
+  document.body.appendChild(el);
+
+  // Collision radius from the glyph’s actual rendered pixels
+  const bounds = el.getBoundingClientRect();
+  const fontPx = parseFloat(getComputedStyle(el).fontSize) || 18;
+  const r = Math.max(
+    1,
+    Math.max(bounds.width, bounds.height, fontPx) / 2,
+  );
+
+  const angle = Math.random() * Math.PI * 2;
+  const speed = 4.2 + Math.random() * 8.5;
+  // ~half die early (4–7s); rest linger longer (~8–12s)
+  const maxLife =
+    Math.random() < 0.5
+      ? 4000 + Math.random() * 3000
+      : 8000 + Math.random() * 4000;
+  trailBurstParticles.push({
+    el,
+    x: cx,
+    y: cy,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    r,
+    born: performance.now(),
+    maxLife,
+    lastBounceSoundAt: 0,
+  });
+  startTrailBurstLoop();
+}
+
+/** Empty-trail click: radial burst with edge + trail-box bounce. */
+function fireTrailEmojiBurst(cx, cy) {
+  if (!state.isMobile && !state.isMuted) {
+    blingSound.pause();
+    blingSound.currentTime = 0;
+    blingSound.play().catch(() => {});
+  }
+  const gen = trailBurstGen;
+  const count = 12 + Math.floor(Math.random() * 6);
+  for (let i = 0; i < count; i++) {
+    setTimeout(
+      () => spawnTrailBurstParticle(cx, cy, TRAIL_BURST_EMOJIS, gen),
+      i * 12,
+    );
+  }
+}
+
+function clearTrailBurstParticles() {
+  trailBurstGen += 1;
+  for (const p of trailBurstParticles) {
+    p.el.remove();
+  }
+  trailBurstParticles.length = 0;
+  if (trailBurstRaf) {
+    cancelAnimationFrame(trailBurstRaf);
+    trailBurstRaf = null;
+  }
+}
+
+function startTrailBurstLoop() {
+  if (trailBurstRaf) return;
+  trailBurstLastTs = performance.now();
+
+  const tick = (now) => {
+    const dt = Math.min(32, now - trailBurstLastTs) / 16.67;
+    trailBurstLastTs = now;
+    bounceSoundsThisFrame = 0;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const bounce = 0.78;
+    const friction = Math.pow(0.985, dt);
+    const boxes = getTrailObstacleRects();
+
+    for (let i = trailBurstParticles.length - 1; i >= 0; i--) {
+      const p = trailBurstParticles[i];
+      const age = now - p.born;
+      p.vy += 0.15 * dt;
+      p.vx *= friction;
+      p.vy *= friction;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+
+      let bounced = collideParticleWithTrailBoxes(p, boxes, bounce);
+
+      if (p.x < p.r) {
+        p.x = p.r;
+        p.vx = Math.abs(p.vx) * bounce;
+        bounced = true;
+      } else if (p.x > w - p.r) {
+        p.x = w - p.r;
+        p.vx = -Math.abs(p.vx) * bounce;
+        bounced = true;
+      }
+      if (p.y < p.r) {
+        p.y = p.r;
+        p.vy = Math.abs(p.vy) * bounce;
+        bounced = true;
+      } else if (p.y > h - p.r) {
+        p.y = h - p.r;
+        p.vy = -Math.abs(p.vy) * bounce;
+        bounced = true;
+      }
+
+      if (bounced) maybePlayBounceSound(p, now);
+
+      if (age >= p.maxLife) {
+        p.el.remove();
+        trailBurstParticles.splice(i, 1);
+        continue;
+      }
+
+      const snapOff = age > p.maxLife - 50;
+      p.el.style.left = `${p.x}px`;
+      p.el.style.top = `${p.y}px`;
+      p.el.style.opacity = snapOff ? "0" : "1";
+      p.el.style.transform = `translate(-50%, -50%) scale(${snapOff ? 0.92 : 1})`;
+    }
+
+    if (trailBurstParticles.length) {
+      trailBurstRaf = requestAnimationFrame(tick);
+    } else {
+      trailBurstRaf = null;
+    }
+  };
+
+  trailBurstRaf = requestAnimationFrame(tick);
+}
+
+let scaleHoverSprinkleTimer = null;
+
+function stopScaleHoverSprinkle() {
+  if (scaleHoverSprinkleTimer) {
+    clearTimeout(scaleHoverSprinkleTimer);
+    scaleHoverSprinkleTimer = null;
+  }
+}
+
+function startScaleHoverSprinkle() {
+  if (state.isMobile || !state.isZoomed || !state.zoomedElement) return;
+  stopScaleHoverSprinkle();
+  const tick = () => {
+    if (
+      state.isMobile ||
+      !state.isZoomed ||
+      !navScale ||
+      navScale.style.display === "none"
+    ) {
+      stopScaleHoverSprinkle();
+      return;
+    }
+    spawnScaleEmoji(SCALE_SAD_EMOJIS);
+    scaleHoverSprinkleTimer = setTimeout(tick, 160 + Math.random() * 200);
+  };
+  tick();
+}
+
+function fireScaleEmojiBurst() {
+  if (
+    scaleHintDismissed ||
+    !state.isZoomed ||
+    !state.zoomedElement ||
+    !canScaleFurther(state.zoomedElement)
+  ) {
+    clearScaleHint();
+    return false;
+  }
+  // Light sad sprinkle: 1–3, staggered
+  const count = 1 + Math.floor(Math.random() * 3);
+  let delay = 0;
+  for (let i = 0; i < count; i++) {
+    delay += 90 + Math.random() * 220;
+    setTimeout(() => {
+      if (scaleHintDismissed || !state.isZoomed) return;
+      spawnScaleEmoji(SCALE_SAD_EMOJIS);
+    }, delay);
+  }
+  return true;
+}
+
+function scheduleNextScaleBurst() {
+  if (scaleHintDismissed || !state.isZoomed) return;
+  // Still sprinkly / not constant, just a bit more often
+  const gap =
+    Math.random() < 0.22
+      ? 500 + Math.random() * 900
+      : 2200 + Math.random() * 3200;
+  scaleEmojiTimeout = setTimeout(() => {
+    scaleEmojiTimeout = null;
+    if (!fireScaleEmojiBurst()) return;
+    scheduleNextScaleBurst();
+  }, gap);
+}
+
+function startScaleEmojiBurst() {
+  if (scaleEmojiTimeout) return;
+  if (!fireScaleEmojiBurst()) return;
+  scheduleNextScaleBurst();
+}
+
 function triggerScaleHint(fromRight = false) {
   if (state.isMobile || !state.zoomedElement) return;
   if (scaleHintDismissed) return;
@@ -1232,11 +1815,10 @@ function triggerScaleHint(fromRight = false) {
     clearScaleHint();
     return;
   }
-  // Glow disabled for now — right-side browsing still aims cursor at scale
   if (!fromRight) return;
   scaleHintFromRight = true;
 
-  if (cursorAimScale) return;
+  if (scaleEmojiTimeout) return;
   if (scaleHintTimeout) return;
 
   scaleHintTimeout = setTimeout(() => {
@@ -1245,7 +1827,7 @@ function triggerScaleHint(fromRight = false) {
     if (!state.isZoomed || !state.zoomedElement || state.isMobile) return;
     if (!canScaleFurther(state.zoomedElement)) return;
     if (!scaleHintFromRight) return;
-    cursorAimScale = true;
+    startScaleEmojiBurst();
   }, SCALE_HINT_DELAY_MS);
 }
 
@@ -1469,6 +2051,7 @@ document.addEventListener("mousemove", (e) => {
   if (!state.hasEntered) {
     customCursor.innerHTML = "+";
     updateCustomCursor(cx, cy, 0);
+    stampWelcomePlus(cx, cy);
     return;
   }
 
@@ -1496,12 +2079,8 @@ document.addEventListener("mousemove", (e) => {
     const onLeftHalf = overImage && cx - rect.left < rect.width / 2;
 
     if (onLeftHalf) {
-      // Left side always slides back — never aim at scale here
       customCursor.innerHTML = "&larr;";
       rotation = 0;
-    } else if (cursorAimScale && navScale) {
-      customCursor.innerHTML = "&rarr;";
-      rotation = getScaleAimRotation(cx, cy);
     } else if (overImage) {
       customCursor.innerHTML = "&rarr;";
       rotation = 0;
@@ -1509,9 +2088,6 @@ document.addEventListener("mousemove", (e) => {
       customCursor.innerHTML = "+";
       rotation = 45;
     }
-  } else if (cursorAimScale && navScale) {
-    customCursor.innerHTML = "&rarr;";
-    rotation = getScaleAimRotation(cx, cy);
   } else if (isOverModel) {
     customCursor.innerHTML = "+";
     rotation = 0;
@@ -1608,6 +2184,17 @@ canvas.addEventListener("click", (e) => {
     e.stopPropagation();
     return;
   }
+  // Trail laid out, click empty space → radial emoji burst (stays in viewport)
+  if (
+    !state.isMobile &&
+    !state.isZoomed &&
+    state.viewMode === "trail" &&
+    !target &&
+    document.querySelector(".trail-image")
+  ) {
+    fireTrailEmojiBurst(e.clientX, e.clientY);
+    return;
+  }
   if (
     state.isZoomed &&
     target &&
@@ -1632,11 +2219,205 @@ backdrop.addEventListener(
   { passive: false },
 );
 
+/** @type {Map<number, { urls: string[], images: HTMLImageElement[], loading: boolean }>} */
+const scrubCache = new Map();
+
+function isVideoTrailProject(project) {
+  return (
+    project?.id === "experimente" ||
+    project?.id === "tat" ||
+    project?.id === "glbviewer"
+  );
+}
+
+/** First loop video for ARCHIVE / TAT trail tiles */
+function getFirstFillVideoPath(project) {
+  if (!project?.folder) return null;
+  return `bilder/${project.folder}/1fill.mp4`;
+}
+
+function preloadScrubFrames(galleryIndex) {
+  const project = getProjectByGalleryIndex(galleryIndex);
+  if (isVideoTrailProject(project)) return Promise.resolve([]);
+
+  let entry = scrubCache.get(galleryIndex);
+  if (entry?.images.length) return Promise.resolve(entry.images);
+  if (entry?.loading) {
+    return new Promise((resolve) => {
+      const wait = () => {
+        const e = scrubCache.get(galleryIndex);
+        if (e && !e.loading) resolve(e.images);
+        else requestAnimationFrame(wait);
+      };
+      wait();
+    });
+  }
+
+  const urls = getScrubPaths(project);
+  entry = { urls, images: [], loading: true };
+  scrubCache.set(galleryIndex, entry);
+
+  if (!urls.length) {
+    entry.loading = false;
+    return Promise.resolve([]);
+  }
+
+  return Promise.all(
+    urls.map(
+      (url) =>
+        new Promise((resolve) => {
+          const img = new Image();
+          img.decoding = "async";
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+          img.src = url;
+        }),
+    ),
+  ).then((loaded) => {
+    entry.images = loaded.filter(Boolean);
+    entry.loading = false;
+    return entry.images;
+  });
+}
+
+function stopHoverScrub(container) {
+  if (!container) return;
+  if (container._scrubRaf) {
+    cancelAnimationFrame(container._scrubRaf);
+    container._scrubRaf = 0;
+  }
+  container._scrubActive = false;
+  const overlay = container.querySelector(".scrub-overlay");
+  if (overlay) overlay.remove();
+}
+
+function stopHoverTrailVideo(container) {
+  if (!container) return;
+  container.querySelectorAll("video.trail-hover-video").forEach((video) => {
+    try {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    } catch (err) {}
+    video.remove();
+  });
+}
+
+/** ARCHIVE / TAT: play first fill video on hover (always muted — no audio overlay) */
+function startHoverTrailVideo(container, project) {
+  if (!container || !project || state.isMobile || state.isZoomed) return;
+  if (trailDrawActive) return;
+  stopHoverTrailVideo(container);
+
+  const mobileSrc = getMobileVideoPath(getFirstFillVideoPath(project));
+  const fullSrc = getFirstFillVideoPath(project);
+  const vid = document.createElement("video");
+  vid.className = "slide-image trail-hover-video scrub-overlay";
+  vid.muted = true;
+  vid.defaultMuted = true;
+  vid.volume = 0;
+  vid.loop = true;
+  vid.autoplay = true;
+  vid.playsInline = true;
+  vid.preload = "auto";
+  vid.setAttribute("muted", "");
+  if (project.id === "glbviewer") {
+    vid.style.objectFit = "fill";
+    vid.style.height = "100%";
+    vid.style.top = "0";
+    vid.style.backgroundColor = "transparent";
+  } else {
+    vid.style.objectFit = "cover";
+    vid.style.height = "100%";
+    vid.style.top = "0";
+  }
+  vid.src = mobileSrc;
+  vid.onerror = () => {
+    if (fullSrc && !vid.dataset.triedFull) {
+      vid.dataset.triedFull = "1";
+      vid.src = fullSrc;
+      vid.play().catch(() => {});
+    } else {
+      vid.remove();
+    }
+  };
+  container.appendChild(vid);
+  vid.play().catch(() => {});
+}
+
+function startHoverScrub(container) {
+  if (!container || state.isMobile || state.isZoomed || state.aboutActive) {
+    return;
+  }
+  if (trailDrawActive) return;
+  const galleryIndex = parseInt(container.dataset.galleryIndex, 10);
+  if (Number.isNaN(galleryIndex)) return;
+  const project = getProjectByGalleryIndex(galleryIndex);
+  if (isVideoTrailProject(project)) return;
+
+  const scrubMs =
+    project?.id === "entwicklung" || project?.id === "prepress"
+      ? 140
+      : CONFIG.scrubIntervalMs;
+
+  stopHoverScrub(container);
+  container._scrubActive = true;
+  // Warm cache as soon as hover starts
+  preloadScrubFrames(galleryIndex).then((frames) => {
+    if (!container._scrubActive || state.isZoomed || trailDrawActive) return;
+    if (!frames || frames.length < 2) return;
+    if (!container.isConnected || !container.matches(":hover")) {
+      stopHoverScrub(container);
+      return;
+    }
+
+    let overlay = container.querySelector(".scrub-overlay");
+    if (!overlay) {
+      overlay = document.createElement("img");
+      overlay.className = "slide-image scrub-overlay";
+      overlay.draggable = false;
+      overlay.alt = "";
+      container.appendChild(overlay);
+    }
+
+    let frameIdx = 0;
+    let lastTs = 0;
+    const step = (ts) => {
+      if (!container._scrubActive || state.isZoomed || trailDrawActive) {
+        if (trailDrawActive) stopHoverScrub(container);
+        return;
+      }
+      if (!lastTs) lastTs = ts;
+      if (ts - lastTs >= scrubMs) {
+        lastTs = ts;
+        overlay.src = frames[frameIdx % frames.length].src;
+        frameIdx++;
+      }
+      container._scrubRaf = requestAnimationFrame(step);
+    };
+    // Show first frame immediately
+    overlay.src = frames[0].src;
+    frameIdx = 1;
+    container._scrubRaf = requestAnimationFrame(step);
+  });
+}
+
+function stopAllHoverScrubs() {
+  document.querySelectorAll(".trail-image").forEach((el) => {
+    stopHoverScrub(el);
+    stopHoverTrailVideo(el);
+  });
+}
+
 function createProjectBox(galleryIndex, x, y, boxId, options = {}) {
   const { deferMedia = false } = options;
   const container = document.createElement("div");
   container.className = "trail-image";
-  container.addEventListener("mouseenter", playHoverSound);
+  container.addEventListener("mouseenter", () => {
+    if (!isVideoTrailProject(getProjectByGalleryIndex(galleryIndex))) {
+      playHoverSound();
+    }
+  });
 
   const width = state.isMobile ? CONFIG.mobileBoxWidth : CONFIG.boxWidth;
   const height = state.isMobile ? CONFIG.mobileBoxHeight : CONFIG.boxHeight;
@@ -1654,7 +2435,10 @@ function createProjectBox(galleryIndex, x, y, boxId, options = {}) {
   const project = getProjectByGalleryIndex(galleryIndex);
   if (project?.id) container.dataset.projectId = project.id;
 
-  const mediaSrc = GALLERIES[galleryIndex][0];
+  // Light still on trail; ARCHIVE/TAT play video only on hover
+  const mediaSrc = project
+    ? getMobileCoverPath(project)
+    : GALLERIES[galleryIndex]?.[0] || null;
 
   if (!deferMedia) {
     if (mediaSrc) {
@@ -1663,12 +2447,27 @@ function createProjectBox(galleryIndex, x, y, boxId, options = {}) {
         container,
         () => {},
         () => {
+          const fallback = GALLERIES[galleryIndex]?.[0];
+          if (fallback && fallback !== mediaSrc && !isVideoPath(fallback)) {
+            loadMedia(
+              fallback,
+              container,
+              () => {},
+              () => {
+                container.style.backgroundColor = "#e5e7eb";
+                container.style.border = "1px solid #9ca3af";
+              },
+              "slide-image",
+              { allowVideo: false },
+            );
+            return;
+          }
           container.style.backgroundColor = "#e5e7eb";
           container.style.border = "1px solid #9ca3af";
         },
         "slide-image",
         {
-          allowVideo: !state.isMobile || isVideoPath(mediaSrc),
+          allowVideo: false,
           objectFit: project?.id === "glbviewer" ? "fill" : undefined,
         },
       );
@@ -1690,8 +2489,16 @@ function createProjectBox(galleryIndex, x, y, boxId, options = {}) {
     if (!state.isZoomed && project) {
       navCenter.innerText = project.name;
     }
+    if (state.isZoomed || state.isMobile || trailDrawActive) return;
+    if (isVideoTrailProject(project)) {
+      startHoverTrailVideo(container, project);
+    } else {
+      startHoverScrub(container);
+    }
   });
   container.addEventListener("mouseleave", () => {
+    stopHoverScrub(container);
+    stopHoverTrailVideo(container);
     if (!state.isZoomed) resetInfo();
   });
 
@@ -1717,6 +2524,8 @@ function createBox(x, y) {
 
 function zoomIn(element, options = {}) {
   const { expandToMax = false } = options;
+  clearTrailBurstParticles();
+  stopAllHoverScrubs();
   state.isZoomed = true;
   state.zoomedElement = element;
   state.currentGalleryIndex = parseInt(element.dataset.galleryIndex, 10);

@@ -156,11 +156,47 @@ export function isVideoPath(src) {
   return /\.(mp4|webm|mov)(\?|$)/i.test(src || "");
 }
 
+/** Lightweight sibling for scrub / mobile, e.g. 3.webp → 3-sm.webp */
+export function getSmPath(src) {
+  if (!src) return src;
+  if (/-sm\.(webp|jpg|jpeg|png)(\?|$)/i.test(src)) return src;
+  if (isVideoPath(src)) {
+    // 1fill.mp4 → 1-sm.webp
+    return src
+      .replace(/fill\.(mp4|webm|mov)(\?|$)/i, "-sm.webp$2")
+      .replace(/\.(mp4|webm|mov)(\?|$)/i, "-sm.webp$2");
+  }
+  return src.replace(/(\.[^.]+)(\?|$)/i, "-sm$1$2");
+}
+
 /** Mobile-optimized sibling, e.g. 1fill.mp4 → 1fill-mobile.mp4 */
 export function getMobileVideoPath(src) {
   if (!isVideoPath(src)) return src;
   if (/-mobile\.(mp4|webm|mov)(\?|$)/i.test(src)) return src;
   return src.replace(/(\.(mp4|webm|mov))(\?|$)/i, "-mobile$1$3");
+}
+
+/**
+ * Low-res stills for hover scrub (cover-sm + slide-sm).
+ * Videos are represented by extracted stills (N-sm.webp).
+ * @param {Project} project
+ */
+export function getScrubPaths(project) {
+  if (!project || project.type === "embed" || project.blankCover) return [];
+  const urls = [];
+  const coverSm = getMobileCoverPath(project);
+  if (coverSm && !isVideoPath(coverSm)) urls.push(coverSm);
+
+  if (Array.isArray(project.slides) && project.slides.length) {
+    for (const slide of project.slides) {
+      urls.push(getSmPath(slide));
+    }
+  } else {
+    for (let j = 1; j <= project.slideCount; j++) {
+      urls.push(`bilder/${project.folder}/${j}-sm.webp`);
+    }
+  }
+  return [...new Set(urls.filter(Boolean))];
 }
 
 /** @param {Project} project */

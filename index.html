@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ggg</title>
+    <title>😔😔😔😔😔</title>
 
     <meta
       http-equiv="Content-Security-Policy"
@@ -12,11 +12,18 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <script>
+      // Required for meshopt-compressed scans (must run before model-viewer upgrades)
+      self.ModelViewerElement = self.ModelViewerElement || {};
+      self.ModelViewerElement.meshoptDecoderLocation =
+        "https://cdn.jsdelivr.net/npm/meshoptimizer/meshopt_decoder.js";
+    </script>
     <script
       type="module"
       src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"
     ></script>
-    <link rel="icon" type="image/webp" href="bilder/kopf1.webp" />
+    <!-- No tab favicon on load → browser default icon. Narrow mode sets an emoji via JS. -->
+    <link rel="apple-touch-icon" href="favicon/apple-touch-icon.png" />
     <style>
       @font-face {
         font-family: "Programme";
@@ -383,6 +390,59 @@
         opacity: 1;
       }
 
+      .scale-emoji-pop {
+        position: fixed;
+        z-index: 10050;
+        pointer-events: none;
+        font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
+          sans-serif;
+        font-size: 1.15rem;
+        line-height: 1;
+        mix-blend-mode: normal;
+        filter: none;
+        /* Fast pop → ease crawl → hard cut (no fade) */
+        animation: scale-emoji-pop 0.78s cubic-bezier(0.05, 0.9, 0.12, 1)
+          forwards;
+        will-change: transform, opacity;
+      }
+
+      @keyframes scale-emoji-pop {
+        0% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
+        }
+        14% {
+          opacity: 1;
+          transform: translate(-50%, -50%)
+            translate(calc(var(--dx) * 0.55), calc(var(--dy) * 0.55))
+            scale(1.22) rotate(calc(var(--rot) * 0.5));
+        }
+        90% {
+          opacity: 1;
+          transform: translate(-50%, -50%) translate(var(--dx), var(--dy))
+            scale(0.96) rotate(var(--rot));
+        }
+        90.01%,
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%) translate(var(--dx), var(--dy))
+            scale(0.96) rotate(var(--rot));
+        }
+      }
+
+      .trail-emoji-burst {
+        position: fixed;
+        z-index: 10040;
+        pointer-events: none;
+        font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
+          sans-serif;
+        font-size: 1.15rem;
+        line-height: 1;
+        transform: translate(-50%, -50%);
+        will-change: transform, left, top, opacity;
+        user-select: none;
+      }
+
       #scale-hint-glow {
         position: fixed;
         pointer-events: none;
@@ -476,10 +536,22 @@
       .about-blend {
         position: relative;
         width: 100%;
+        height: 100%;
         min-height: 100%;
         background-color: #ffffff;
         /* Keep scan + text in one blend group (same as desktop look) */
         isolation: isolate;
+      }
+
+      /* Desktop: explicit fill — height:100% fails when parent only has min-height */
+      #about-page model-viewer {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        background-color: transparent;
+        z-index: 0;
       }
 
       .about-bio {
@@ -511,11 +583,13 @@
         .about-blend {
           isolation: isolate;
           background-color: #ffffff;
+          height: auto;
           min-height: 100%;
         }
 
         #about-page model-viewer {
           position: relative;
+          inset: auto;
           display: block;
           top: auto;
           left: auto;
@@ -633,6 +707,11 @@
           filter 0.2s ease;
       }
 
+      .slide-image.scrub-overlay {
+        z-index: 5;
+        transition: none;
+      }
+
       video.slide-image {
         height: 94%;
         top: 3%;
@@ -653,7 +732,6 @@
       }
 
       body:not(.zoomed-active) .trail-image:hover {
-        transform: translate(-50%, -50%) scale(1.15);
         z-index: 4010;
       }
 
@@ -667,9 +745,7 @@
         opacity: 0 !important;
         pointer-events: none !important;
         visibility: hidden;
-        transition:
-          opacity 0.35s ease,
-          visibility 0.35s ease;
+        transition: none;
       }
 
       .trail-image.shuffling {
@@ -875,6 +951,7 @@
         background-color: #ffffff;
         transition: opacity 0.5s ease;
         pointer-events: auto;
+        isolation: isolate;
       }
 
       #welcome-screen.welcome-dismissed {
@@ -882,7 +959,31 @@
         pointer-events: none;
       }
 
+      .welcome-plus-mark {
+        position: absolute;
+        left: 0;
+        top: 0;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        font-family: "Programme", sans-serif;
+        font-weight: 700;
+        font-size: 3rem;
+        line-height: 1;
+        color: #000000;
+        z-index: 1;
+        user-select: none;
+      }
+
+      .welcome-draw-emoji {
+        font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
+          sans-serif;
+        font-weight: 400;
+        font-size: 1.8rem;
+      }
+
       .welcome-title {
+        position: relative;
+        z-index: 2;
         font-size: 1rem;
         font-weight: 400;
         text-align: center;
@@ -890,6 +991,7 @@
         max-width: 20rem;
         line-height: 1.25;
         pointer-events: none;
+        mix-blend-mode: multiply;
       }
 
       #grid-view {
@@ -1022,26 +1124,24 @@
     <div id="about-page">
       <div class="about-blend">
         <model-viewer
-          src="scans/untitled1.glb"
+          src="scans/fairy_boarding.glb"
           ar-modes="webxr scene-viewer quick-look"
           camera-controls
           touch-action="none"
-          camera-orbit="0deg 75deg 100%"
+          camera-orbit="180deg 75deg 64%"
+          camera-target="0.24m auto auto"
           field-of-view="30deg"
           min-camera-orbit="auto auto 40%"
           max-camera-orbit="auto auto 300%"
           orbit-sensitivity="1.5"
           interpolation-decay="100"
           tone-mapping="neutral"
-          poster="poster.webp"
           shadow-intensity="0"
           exposure="0.98"
-          scale="0.8 0.8 0.8"
+          scale="1.6128 1.6128 1.6128"
           interaction-prompt="none"
         >
-          <div class="progress-bar hide" slot="progress-bar">
-            <div class="update-bar"></div>
-          </div>
+          <div slot="progress-bar"></div>
           <div slot="interaction-prompt"></div>
         </model-viewer>
 
@@ -1065,9 +1165,9 @@
             <span class="skill-item">InDesign</span>
             <span class="skill-item">Illustrator</span>
             <span class="skill-item">Photoshop</span>
-            <span class="skill-item">Creative Coding</span>
+            <span class="skill-item">Coding</span>
+            <span class="skill-item">Figma</span>
             <span class="skill-item">TouchDesigner</span>
-            <span class="skill-item">Cavalry</span>
             <span class="skill-item">Photography</span>
           </div>
         </div>

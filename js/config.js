@@ -10,6 +10,7 @@ export const CONFIG = {
   mobileBoxHeight: 104,
   edgeGap: 0,
   mobileThumbConcurrency: 2,
+  scrubIntervalMs: 70,
 };
 
 export const VIEW_MODE_KEY = "portfolio-view-mode";
