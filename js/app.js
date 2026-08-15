@@ -18,12 +18,21 @@ const TAB_MOOD_LEVELS = ["😔", "🙁", "🙂", "😄"];
 
 const TAB_SLOT_COUNT = 5;
 const TAB_EMOJI_INTERVAL_MS = 260;
+/** Degrees per tab tick — full turn ~ every ~3.1s at 260ms */
+const FAVICON_SPIN_DEG_PER_TICK = 30;
+const FAVICON_SPIN_SIZE = 64;
+
 let tabMoodFrame = 0;
 let tabMoodFrames = [];
 let tabFaviconMood = 0;
 let tabMoodTimer = null;
 let tabTitleFlip = false;
-let tabFaviconIsDefault = false;
+let tabFaviconIsEmoji = false;
+let faviconSpinAngle = 0;
+/** @type {HTMLCanvasElement | null} */
+let faviconSpinCanvas = null;
+/** @type {HTMLCanvasElement | null} */
+let faviconDefaultBadge = null;
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -109,17 +118,119 @@ function ensureTabFaviconLink() {
 function setTabFaviconEmoji(emoji) {
   const href = emojiToFaviconHref(emoji);
   if (!href) return;
-  tabFaviconIsDefault = false;
+  tabFaviconIsEmoji = true;
   const link = ensureTabFaviconLink();
   link.type = "image/png";
   link.href = href;
 }
 
-function setTabFaviconBrowserDefault() {
-  if (tabFaviconIsDefault) return;
-  const link = document.getElementById("favicon");
-  if (link) link.remove();
-  tabFaviconIsDefault = true;
+/**
+ * Chrome-style “no favicon” document badge (page + folded corner).
+ * Cached once, then rotated each tick.
+ */
+function ensureDefaultDocumentBadge() {
+  if (faviconDefaultBadge) return faviconDefaultBadge;
+  const size = FAVICON_SPIN_SIZE;
+  const c = document.createElement("canvas");
+  c.width = size;
+  c.height = size;
+  const ctx = c.getContext("2d");
+  if (!ctx) return null;
+
+  const s = size;
+  const pad = s * 0.16;
+  const fold = s * 0.28;
+  const left = pad;
+  const top = pad;
+  const right = s - pad;
+  const bottom = s - pad;
+
+  // Soft shadow
+  ctx.fillStyle = "rgba(0,0,0,0.08)";
+  ctx.beginPath();
+  ctx.moveTo(left + 1, top + 2);
+  ctx.lineTo(right - fold + 1, top + 2);
+  ctx.lineTo(right + 1, top + fold + 2);
+  ctx.lineTo(right + 1, bottom + 2);
+  ctx.lineTo(left + 1, bottom + 2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Page body
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = "#5f6368";
+  ctx.lineWidth = s * 0.045;
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(left, top);
+  ctx.lineTo(right - fold, top);
+  ctx.lineTo(right, top + fold);
+  ctx.lineTo(right, bottom);
+  ctx.lineTo(left, bottom);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Fold triangle
+  ctx.fillStyle = "#e8eaed";
+  ctx.beginPath();
+  ctx.moveTo(right - fold, top);
+  ctx.lineTo(right - fold, top + fold);
+  ctx.lineTo(right, top + fold);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#5f6368";
+  ctx.beginPath();
+  ctx.moveTo(right - fold, top);
+  ctx.lineTo(right - fold, top + fold);
+  ctx.lineTo(right, top + fold);
+  ctx.stroke();
+
+  // Text lines
+  ctx.strokeStyle = "#bdc1c6";
+  ctx.lineWidth = s * 0.055;
+  ctx.lineCap = "round";
+  const lineLeft = left + s * 0.14;
+  const lineRight = right - s * 0.14;
+  for (let i = 0; i < 3; i++) {
+    const y = top + fold + s * 0.18 + i * s * 0.14;
+    const end = i === 2 ? lineLeft + (lineRight - lineLeft) * 0.62 : lineRight;
+    ctx.beginPath();
+    ctx.moveTo(lineLeft, y);
+    ctx.lineTo(end, y);
+    ctx.stroke();
+  }
+
+  faviconDefaultBadge = c;
+  return faviconDefaultBadge;
+}
+
+/** Wide tab: spin the browser-default-style document logo. */
+function setTabFaviconSpinning() {
+  tabFaviconIsEmoji = false;
+  const link = ensureTabFaviconLink();
+  link.type = "image/png";
+
+  const badge = ensureDefaultDocumentBadge();
+  if (!faviconSpinCanvas) {
+    faviconSpinCanvas = document.createElement("canvas");
+    faviconSpinCanvas.width = FAVICON_SPIN_SIZE;
+    faviconSpinCanvas.height = FAVICON_SPIN_SIZE;
+  }
+  const ctx = faviconSpinCanvas.getContext("2d");
+  if (!ctx || !badge) return;
+
+  const size = FAVICON_SPIN_SIZE;
+  const half = size / 2;
+  ctx.clearRect(0, 0, size, size);
+  ctx.save();
+  ctx.translate(half, half);
+  ctx.rotate((faviconSpinAngle * Math.PI) / 180);
+  ctx.drawImage(badge, -half, -half, size, size);
+  ctx.restore();
+
+  faviconSpinAngle = (faviconSpinAngle + FAVICON_SPIN_DEG_PER_TICK) % 360;
+  link.href = faviconSpinCanvas.toDataURL("image/png");
 }
 
 function rebuildTabMoodFrames() {
@@ -144,7 +255,7 @@ function updateEmojiTabTitle() {
     return;
   }
 
-  setTabFaviconBrowserDefault();
+  setTabFaviconSpinning();
   const len = tabMoodFrames.length;
   if (!len) return;
   // Explicit wrap so the wave clearly restarts
@@ -166,12 +277,6 @@ function startEmojiTabTitle() {
   rebuildTabMoodFrames();
   updateEmojiTabTitle();
   scheduleTabMoodTick();
-  window.addEventListener("resize", () => {
-    // Don't advance on resize — just refresh favicon mode
-    if (window.innerWidth < 800) {
-      tabFaviconIsDefault = false;
-    }
-  });
 }
 
 startEmojiTabTitle();
