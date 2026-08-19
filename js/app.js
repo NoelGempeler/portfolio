@@ -2312,7 +2312,10 @@ canvas.addEventListener("click", (e) => {
   }
 });
 
-backdrop.addEventListener("click", zoomOut);
+backdrop.addEventListener("click", (e) => {
+  e.stopPropagation();
+  zoomOut();
+});
 backdrop.addEventListener(
   "touchstart",
   (e) => {
