@@ -485,46 +485,6 @@ function activateWelcomeCursor() {
   }
 }
 
-const WELCOME_PLUS_MIN_DIST = 18;
-const WELCOME_DRAW_EMOJIS = ["😔", "🙁", "🙂", "😄", "😊", "✨"];
-let welcomePlusLastX = null;
-let welcomePlusLastY = null;
-let welcomeStampCount = 0;
-
-function stampWelcomePlus(cx, cy) {
-  if (!welcomeScreen || state.hasEntered || state.isMobile) return;
-  if (welcomePlusLastX != null) {
-    const dist = Math.hypot(cx - welcomePlusLastX, cy - welcomePlusLastY);
-    if (dist < WELCOME_PLUS_MIN_DIST) return;
-
-    // Longer draw → more likely to drop an emoji between pluses
-    const chance = Math.min(0.55, 0.04 + welcomeStampCount * 0.012);
-    if (Math.random() < chance) {
-      const t = 0.35 + Math.random() * 0.3;
-      const ex = welcomePlusLastX + (cx - welcomePlusLastX) * t;
-      const ey = welcomePlusLastY + (cy - welcomePlusLastY) * t;
-      const emoji = document.createElement("span");
-      emoji.className = "welcome-plus-mark welcome-draw-emoji";
-      emoji.textContent =
-        WELCOME_DRAW_EMOJIS[
-          Math.floor(Math.random() * WELCOME_DRAW_EMOJIS.length)
-        ];
-      emoji.style.left = `${ex}px`;
-      emoji.style.top = `${ey}px`;
-      welcomeScreen.appendChild(emoji);
-    }
-  }
-  welcomePlusLastX = cx;
-  welcomePlusLastY = cy;
-  welcomeStampCount += 1;
-  const mark = document.createElement("span");
-  mark.className = "welcome-plus-mark";
-  mark.textContent = "+";
-  mark.style.left = `${cx}px`;
-  mark.style.top = `${cy}px`;
-  welcomeScreen.appendChild(mark);
-}
-
 function getProjectByBoxId(boxId) {
   return PROJECTS[boxId - 1] || null;
 }
@@ -601,6 +561,10 @@ function enterSite() {
     setSoundMuted(true);
   } else {
     enableSound();
+  }
+
+  if (typeof window.__destroyWelcomeShader === "function") {
+    window.__destroyWelcomeShader();
   }
 
   if (welcomeScreen) {
@@ -2156,7 +2120,6 @@ document.addEventListener("mousemove", (e) => {
   if (!state.hasEntered) {
     customCursor.innerHTML = "+";
     updateCustomCursor(cx, cy, 0);
-    stampWelcomePlus(cx, cy);
     return;
   }
 
@@ -2522,9 +2485,7 @@ function createProjectBox(galleryIndex, x, y, boxId, options = {}) {
   const container = document.createElement("div");
   container.className = "trail-image";
   container.addEventListener("mouseenter", () => {
-    if (!isVideoTrailProject(getProjectByGalleryIndex(galleryIndex))) {
-      playHoverSound();
-    }
+    playHoverSound();
   });
 
   const width = state.isMobile ? CONFIG.mobileBoxWidth : CONFIG.boxWidth;
@@ -2621,7 +2582,8 @@ function createProjectBox(galleryIndex, x, y, boxId, options = {}) {
 }
 
 function createBox(x, y) {
-  if (state.count >= CONFIG.maxImages) return;
+  const trailMax = Math.min(CONFIG.maxImages, PROJECTS.length);
+  if (state.count >= trailMax) return;
   state.count++;
   const galleryIndex = (state.count - 1) % GALLERIES.length;
   const container = createProjectBox(galleryIndex, x, y, state.count);

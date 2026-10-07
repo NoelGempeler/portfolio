@@ -945,14 +945,12 @@
         position: fixed;
         inset: 0;
         z-index: 100000;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
         background-color: #ffffff;
         transition: opacity 0.5s ease;
         pointer-events: auto;
         isolation: isolate;
+        overflow: hidden;
+        cursor: pointer;
       }
 
       #welcome-screen.welcome-dismissed {
@@ -960,31 +958,26 @@
         pointer-events: none;
       }
 
-      .welcome-plus-mark {
+      #welcome-p5 {
         position: absolute;
-        left: 0;
-        top: 0;
-        transform: translate(-50%, -50%);
-        pointer-events: none;
-        font-family: "Programme", sans-serif;
-        font-weight: 700;
-        font-size: 3rem;
-        line-height: 1;
-        color: #000000;
+        inset: 0;
         z-index: 1;
-        user-select: none;
       }
 
-      .welcome-draw-emoji {
-        font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
-          sans-serif;
-        font-weight: 400;
-        font-size: 1.8rem;
+      #welcome-p5 canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
       }
 
       .welcome-title {
-        position: relative;
+        position: absolute;
+        left: 50%;
+        top: 50%;
         z-index: 2;
+        --tx: 0px;
+        --ty: 0px;
+        transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty)));
         font-size: 1rem;
         font-weight: 400;
         text-align: center;
@@ -993,6 +986,8 @@
         line-height: 1.25;
         pointer-events: none;
         mix-blend-mode: multiply;
+        will-change: transform;
+        white-space: nowrap;
       }
 
       #grid-view {
@@ -1079,6 +1074,7 @@
     </div>
 
     <div id="welcome-screen">
+      <div id="welcome-p5" aria-hidden="true"></div>
       <p class="welcome-title">click anywhere to enter</p>
     </div>
 
@@ -1189,6 +1185,8 @@
       <div id="swipe-hint">please swipe</div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js"></script>
+    <script src="js/welcome-shader.js"></script>
     <script type="module" src="js/app.js"></script>
   </body>
 </html>

@@ -21,7 +21,7 @@ export const PROJECTS = [
     name: "ARCHIVE",
     type: "gallery",
     folder: "experimente",
-    slideCount: 21,
+    slideCount: 6,
     caption:
       "<span class='caption-specs'>Archive<span class='spec-sep'>|</span>20xx<span class='spec-sep'>|</span></span>A sandbox for creative coding and visual curiosity. Ranging from interactive TouchDesigner jams to generative experiments, this is where I hunt for weird textures and unexpected aesthetics. It's a space to play, break algorithms, and embrace happy accidents, treating code like a messy material to see what strange visuals come out the other side.",
   },
@@ -96,15 +96,6 @@ export const PROJECTS = [
     slideCount: 5,
     caption:
       "<span class='caption-specs'>Latent Study<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span> A generative study using StreamDiffusion and TouchDesigner. The project utilizes my grandfather's archive of nature photography, ranging from fungi and trees to flowers as visual anchors. Crucially, each photo is paired with the unique poem he wrote for it, creating a dataset defined by deep personal connection. In the system, the translated text of each poem acts as the specific semantic driver for its paired image, steering the trajectory within the neural network. By manipulating the parameters live, the installation reveals this morphing process, a continuous latent walk that navigates the distance between the image of the plant and the emotional reality of the poem.",
-  },
-  {
-    id: "ringwebsite",
-    name: "ANELL",
-    type: "gallery",
-    folder: "ringwebsite",
-    slideCount: 5,
-    caption:
-      "<span class='caption-specs'>Ring Project<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span>Focusing on the potential of discarded materials, <a href='https://anell.ch/' target='_blank' style='cursor: none !important; color: inherit; text-decoration: underline;'>anell.ch</a> turns antique silverware into wearable objects. Each ring is unique, retaining the scratches and stamps of its previous life. This is the yet unfinished online home for the upcycling project I run with my brother. The focus here isn't on branding, but on simple reuse, taking discarded silverspoons and giving them a second life.",
   },
   {
     id: "scans",
