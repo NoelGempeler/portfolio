@@ -112,7 +112,7 @@ export const PROJECTS = [
     type: "gallery",
     folder: "glbviewer",
     slideCount: 3,
-    cover: "bilder/glbviewer/1fill.mp4",
+    cover: "bilder/glbviewer/glbviewercover.webp",
     slides: [
       "bilder/glbviewer/s1.webp",
       "bilder/glbviewer/s2.webp",
