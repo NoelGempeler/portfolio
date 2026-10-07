@@ -23,7 +23,7 @@ export const PROJECTS = [
     folder: "experimente",
     slideCount: 6,
     caption:
-      "<span class='caption-specs'>Archive<span class='spec-sep'>|</span>20xx<span class='spec-sep'>|</span></span>A sandbox for creative coding and visual curiosity. Ranging from interactive TouchDesigner jams to generative experiments, this is where I hunt for weird textures and unexpected aesthetics. It's a space to play, break algorithms, and embrace happy accidents, treating code like a messy material to see what strange visuals come out the other side.",
+      "<span class='caption-specs'>Archive<span class='spec-sep'>|</span>20xx<span class='spec-sep'>|</span></span>A playground for visual curiosity. This where GGG Cooporation makes its research. It's a space to play, break algorithms, and embrace happy accidents.",
   },
   {
     id: "bitwusst",
