@@ -3,7 +3,7 @@
 /** Tweak these to customize the enter-screen ball */
 const WELCOME_SHADER = {
   ballScale: 0.3, // fraction of min(viewport)
-  autoSpin: 100, // deg/sec idle spin
+  autoSpin: 0, // no idle spin — cursor only
   mouseSpin: 0.3, // mouse rotation strength
   tileZoom: 10.0,
   warpStrength: 1.0,
