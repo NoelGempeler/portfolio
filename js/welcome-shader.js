@@ -12,6 +12,8 @@ const WELCOME_SHADER = {
   circleC: 20.0,
   titleParallax: 0.7, // how far title drifts with mouse (0–1 of half-screen)
   titleLag: 0.12, // lerp speed toward mouse
+  /** Mobile: DVD-style bounce speed (px per frame @60fps) */
+  titleBounceSpeed: 1.6,
 };
 
 const vertexShader = `
@@ -102,6 +104,62 @@ window.__welcomeP5 = new p5((p) => {
   let titleEl = null;
   let titleX = 0;
   let titleY = 0;
+  let bounceX = 0;
+  let bounceY = 0;
+  let bounceVx = 0;
+  let bounceVy = 0;
+  let bounceReady = false;
+
+  const isMobileWelcome = () => p.windowWidth < 800;
+
+  const initTitleBounce = () => {
+    if (!titleEl) return;
+    const rect = titleEl.getBoundingClientRect();
+    const halfW = Math.max(rect.width, 40) / 2;
+    const halfH = Math.max(rect.height, 16) / 2;
+    const maxX = Math.max(8, p.width / 2 - halfW - 6);
+    const maxY = Math.max(8, p.height / 2 - halfH - 6);
+    bounceX = (Math.random() * 2 - 1) * maxX * 0.35;
+    bounceY = (Math.random() * 2 - 1) * maxY * 0.35;
+    const speed = WELCOME_SHADER.titleBounceSpeed;
+    const angle = Math.random() * Math.PI * 2;
+    bounceVx = Math.cos(angle) * speed;
+    bounceVy = Math.sin(angle) * speed;
+    if (Math.abs(bounceVx) < 0.45) bounceVx = 0.45 * Math.sign(bounceVx || 1);
+    if (Math.abs(bounceVy) < 0.45) bounceVy = 0.45 * Math.sign(bounceVy || 1);
+    bounceReady = true;
+  };
+
+  const updateTitleBounce = () => {
+    if (!titleEl) return;
+    if (!bounceReady) initTitleBounce();
+    const rect = titleEl.getBoundingClientRect();
+    const halfW = Math.max(rect.width, 40) / 2;
+    const halfH = Math.max(rect.height, 16) / 2;
+    const maxX = Math.max(8, p.width / 2 - halfW - 6);
+    const maxY = Math.max(8, p.height / 2 - halfH - 6);
+
+    bounceX += bounceVx;
+    bounceY += bounceVy;
+
+    if (bounceX > maxX) {
+      bounceX = maxX;
+      bounceVx = -Math.abs(bounceVx);
+    } else if (bounceX < -maxX) {
+      bounceX = -maxX;
+      bounceVx = Math.abs(bounceVx);
+    }
+    if (bounceY > maxY) {
+      bounceY = maxY;
+      bounceVy = -Math.abs(bounceVy);
+    } else if (bounceY < -maxY) {
+      bounceY = -maxY;
+      bounceVy = Math.abs(bounceVy);
+    }
+
+    titleEl.style.setProperty("--tx", `${bounceX}px`);
+    titleEl.style.setProperty("--ty", `${bounceY}px`);
+  };
 
   p.setup = () => {
     const host = document.getElementById("welcome-p5");
@@ -111,6 +169,7 @@ window.__welcomeP5 = new p5((p) => {
     p.angleMode(p.DEGREES);
     theShader = p.createShader(vertexShader, fragmentShader);
     titleEl = document.querySelector(".welcome-title");
+    if (isMobileWelcome()) initTitleBounce();
   };
 
   p.draw = () => {
@@ -138,21 +197,32 @@ window.__welcomeP5 = new p5((p) => {
     p.sphere(s);
     p.pop();
 
-    // Title drifts with mouse (lerped), centered by default
-    if (titleEl) {
-      const nx = (p.mouseX / p.width - 0.5) * 2;
-      const ny = (p.mouseY / p.height - 0.5) * 2;
-      const targetX = nx * (p.width * 0.5) * WELCOME_SHADER.titleParallax;
-      const targetY = ny * (p.height * 0.5) * WELCOME_SHADER.titleParallax;
-      titleX += (targetX - titleX) * WELCOME_SHADER.titleLag;
-      titleY += (targetY - titleY) * WELCOME_SHADER.titleLag;
-      titleEl.style.setProperty("--tx", `${titleX}px`);
-      titleEl.style.setProperty("--ty", `${titleY}px`);
+    if (!titleEl) return;
+
+    if (isMobileWelcome()) {
+      // Straight-line bounce off screen edges
+      updateTitleBounce();
+      return;
     }
+
+    bounceReady = false;
+    // Desktop: title drifts with mouse
+    const nx = (p.mouseX / p.width - 0.5) * 2;
+    const ny = (p.mouseY / p.height - 0.5) * 2;
+    const targetX = nx * (p.width * 0.5) * WELCOME_SHADER.titleParallax;
+    const targetY = ny * (p.height * 0.5) * WELCOME_SHADER.titleParallax;
+    titleX += (targetX - titleX) * WELCOME_SHADER.titleLag;
+    titleY += (targetY - titleY) * WELCOME_SHADER.titleLag;
+    titleEl.style.setProperty("--tx", `${titleX}px`);
+    titleEl.style.setProperty("--ty", `${titleY}px`);
   };
 
   p.windowResized = () => {
     p.resizeCanvas(p.windowWidth, p.windowHeight);
+    if (isMobileWelcome()) {
+      bounceReady = false;
+      initTitleBounce();
+    }
   };
 });
 

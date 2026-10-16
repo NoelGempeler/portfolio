@@ -14,7 +14,7 @@ console.log("Application initializing...");
 /**
  * Tab mood set (sad → happy). Used for title wave + single favicon cycle.
  */
-const TAB_MOOD_LEVELS = ["😔", "🙁", "🙂", "😄"];
+const TAB_MOOD_LEVELS = ["😔", "🙁", "😢", "😞"];
 
 const TAB_SLOT_COUNT = 5;
 const TAB_EMOJI_INTERVAL_MS = 260;
@@ -457,7 +457,7 @@ const scaleHintGlow = document.getElementById("scale-hint-glow");
 const SCALE_HINT_DELAY_MS = 4000;
 const SCALE_CURSOR_NEAR_PX = 72;
 const SCALE_SAD_EMOJIS = ["😔", "🙁", "😢", "😞", "😟", "😕"];
-const SCALE_HAPPY_EMOJIS = ["😄", "🙂", "😊", "😁", "🤩", "✨"];
+const SCALE_HAPPY_EMOJIS = ["😔", "🙁", "😢", "😞", "😟", "😕"];
 let scaleHintTimeout = null;
 let scaleHintFromRight = false;
 let scaleEmojiTimeout = null;
@@ -502,7 +502,7 @@ function updateHelperText() {
   if (!state.hasMoved && state.hasEntered) {
     helperText.style.opacity = "1";
     helperText.querySelector("p").innerText = state.isMobile
-      ? "tap a project to expand :)"
+      ? "drag to sort · tap to expand :)"
       : "move mouse to drop images. click to expand & slide:)";
   }
 }
@@ -623,6 +623,7 @@ function renderGrid() {
     tile.className = "grid-tile";
     tile.dataset.galleryIndex = String(galleryIndex);
     tile.dataset.boxId = String(galleryIndex + 1);
+    if (project?.id) tile.dataset.projectId = project.id;
 
     const mediaWrap = document.createElement("div");
     mediaWrap.className = "grid-tile-media";
@@ -1401,6 +1402,8 @@ function loadMedia(
 
 navAbout.addEventListener("click", () => {
   resetInfo();
+  clearTrailBurstParticles();
+  clearScaleHint();
   if (state.isZoomed) {
     state.isZoomed = false;
     state.zoomedElement = null;
@@ -1566,7 +1569,7 @@ function fireScaleEmojiPop(emojis, count) {
   }
 }
 
-const TRAIL_BURST_EMOJIS = [...SCALE_SAD_EMOJIS, ...SCALE_HAPPY_EMOJIS];
+const TRAIL_BURST_EMOJIS = [...SCALE_SAD_EMOJIS];
 /** @type {{ el: HTMLElement, x: number, y: number, vx: number, vy: number, rot: number, vr: number, r: number, born: number, maxLife: number }[]} */
 const trailBurstParticles = [];
 let trailBurstRaf = null;
@@ -2234,15 +2237,49 @@ function handleTrailLogic(cx, cy) {
   }
 }
 
+function tryTrailEmptyEmojiBurst(clientX, clientY, fromEl) {
+  if (state.isZoomed || state.viewMode !== "trail") return false;
+  if (fromEl?.closest?.(".trail-image, nav, a, button, #backdrop")) {
+    return false;
+  }
+  if (!document.querySelector(".trail-image")) return false;
+  fireTrailEmojiBurst(clientX, clientY);
+  return true;
+}
+
+let mobileBurstArmed = false;
+
+canvas.addEventListener(
+  "touchend",
+  (e) => {
+    if (!state.hasEntered || !state.isMobile) return;
+    if (state.isZoomed || state.aboutActive) return;
+    if (touchMoved) return;
+    if (state.viewMode !== "trail") return;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const hit = document.elementFromPoint(t.clientX, t.clientY);
+    if (hit?.closest(".trail-image, nav, a, button, #backdrop")) return;
+    if (tryTrailEmptyEmojiBurst(t.clientX, t.clientY, hit)) {
+      mobileBurstArmed = true;
+      // Suppress the following click so we don't double-burst
+      setTimeout(() => {
+        mobileBurstArmed = false;
+      }, 400);
+    }
+  },
+  { passive: true },
+);
+
 canvas.addEventListener("click", (e) => {
   if (!state.hasEntered) return;
+  // Drag / finger slip — don't open; clean tap still opens below
   if (state.isMobile && touchMoved) {
     touchMoved = false;
-    // Still allow taps on project boxes after a small finger slip
-    const target = e.target.closest(".trail-image");
-    if (!target || state.isZoomed) return;
-    zoomIn(target);
-    e.stopPropagation();
+    return;
+  }
+  if (state.isMobile && mobileBurstArmed) {
+    mobileBurstArmed = false;
     return;
   }
 
@@ -2252,15 +2289,8 @@ canvas.addEventListener("click", (e) => {
     e.stopPropagation();
     return;
   }
-  // Trail laid out, click empty space → radial emoji burst (stays in viewport)
-  if (
-    !state.isMobile &&
-    !state.isZoomed &&
-    state.viewMode === "trail" &&
-    !target &&
-    document.querySelector(".trail-image")
-  ) {
-    fireTrailEmojiBurst(e.clientX, e.clientY);
+  // Trail laid out, tap/click empty space → radial emoji burst (desktop + mobile)
+  if (tryTrailEmptyEmojiBurst(e.clientX, e.clientY, e.target)) {
     return;
   }
   if (
@@ -2426,10 +2456,17 @@ function startHoverScrub(container) {
   const project = getProjectByGalleryIndex(galleryIndex);
   if (isVideoTrailProject(project)) return;
 
+  // Slower hover shuffle for dense galleries
   const scrubMs =
-    project?.id === "entwicklung" || project?.id === "prepress"
-      ? 140
-      : CONFIG.scrubIntervalMs;
+    project?.id === "paris" ||
+    project?.id === "layout2" ||
+    project?.id === "fotografik" ||
+    project?.id === "bitwusst" ||
+    project?.id === "scans"
+      ? 200
+      : project?.id === "prepress"
+        ? 140
+        : CONFIG.scrubIntervalMs;
 
   stopHoverScrub(container);
   container._scrubActive = true;
@@ -2480,6 +2517,89 @@ function stopAllHoverScrubs() {
   });
 }
 
+/** Mobile trail: drag boxes around to dig through the pile */
+let mobileTrailZ = 4000;
+
+function attachMobileTrailDrag(el) {
+  let tracking = false;
+  let dragging = false;
+  let startX = 0;
+  let startY = 0;
+  let origLeft = 0;
+  let origTop = 0;
+
+  const clampPos = (nx, ny) => {
+    const scale = CONFIG.mobileScale || 1;
+    const halfW = (CONFIG.mobileBoxWidth * scale) / 2;
+    const halfH = (CONFIG.mobileBoxHeight * scale) / 2;
+    const footerTop = footerEl?.getBoundingClientRect().top ?? window.innerHeight;
+    const minX = halfW + 4;
+    const maxX = Math.max(minX + 1, window.innerWidth - halfW - 4);
+    const minY = CONFIG.navZoneHeight + halfH;
+    const maxY = Math.max(minY + 1, footerTop - halfH - 8);
+    return {
+      x: Math.min(Math.max(nx, minX), maxX),
+      y: Math.min(Math.max(ny, minY), maxY),
+    };
+  };
+
+  el.addEventListener(
+    "touchstart",
+    (e) => {
+      if (!state.isMobile || state.isZoomed || state.aboutActive) return;
+      if (state.viewMode !== "trail") return;
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      tracking = true;
+      dragging = false;
+      startX = t.clientX;
+      startY = t.clientY;
+      origLeft = parseFloat(el.style.left) || 0;
+      origTop = parseFloat(el.style.top) || 0;
+    },
+    { passive: true },
+  );
+
+  el.addEventListener(
+    "touchmove",
+    (e) => {
+      if (!tracking || !state.isMobile || state.isZoomed) return;
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      if (!dragging) {
+        if (Math.hypot(dx, dy) < 12) return;
+        dragging = true;
+        touchMoved = true;
+        mobileTrailZ = Math.min(mobileTrailZ + 1, 4990);
+        el.style.zIndex = String(mobileTrailZ);
+        el.classList.add("trail-dragging", "no-transition");
+      }
+      e.preventDefault();
+      const { x, y } = clampPos(origLeft + dx, origTop + dy);
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+    },
+    { passive: false },
+  );
+
+  const endDrag = () => {
+    if (!tracking) return;
+    if (dragging) {
+      el.dataset.originX = String(parseFloat(el.style.left) || 0);
+      el.dataset.originY = String(parseFloat(el.style.top) || 0);
+      el.classList.remove("trail-dragging", "no-transition");
+      touchMoved = true;
+    }
+    tracking = false;
+    dragging = false;
+  };
+
+  el.addEventListener("touchend", endDrag);
+  el.addEventListener("touchcancel", endDrag);
+}
+
 function createProjectBox(galleryIndex, x, y, boxId, options = {}) {
   const { deferMedia = false } = options;
   const container = document.createElement("div");
@@ -2496,6 +2616,9 @@ function createProjectBox(galleryIndex, x, y, boxId, options = {}) {
     "--idle-scale",
     state.isMobile ? CONFIG.mobileScale : 1,
   );
+  if (state.isMobile) {
+    attachMobileTrailDrag(container);
+  }
 
   container.dataset.galleryIndex = galleryIndex;
   container.dataset.slideIndex = 0;
@@ -2905,6 +3028,7 @@ function zoomOut() {
   }
 
   hideSwipeHint();
+  clearTrailBurstParticles();
   const wasMobileTrail =
     state.isMobile && state.viewMode === "trail" && !state.aboutActive;
   state.isZoomed = false;

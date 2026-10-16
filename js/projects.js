@@ -80,15 +80,6 @@ export const PROJECTS = [
       "<span class='caption-specs'>Postcard<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>Bypassing the scenic Mount Pilatus and the Chapel Bridge, this work focuses on street philosopher Emil Manser. The goal was to capture the imperfect side of Lucerne on a Postcard. Using Python, I built a custom generator that reconstructed Manser's portrait from the text of his famous socialy critical street signs.",
   },
   {
-    id: "entwicklung",
-    name: "GARDEN SCISSORS",
-    type: "gallery",
-    folder: "entwicklung",
-    slideCount: 7,
-    caption:
-      "<span class='caption-specs'>Object Study<span class='spec-sep'>|</span>2023<span class='spec-sep'>|</span></span>This project focuses on the analytical drawing and conceptual investigation of a given object. I studied the pruning shear's form, mechanics, surface structure, and materiality using perspectival drawings and print-based techniques. Visual experiments, technical tests, and material samples formed the basis for a physical model and impact studies on cardboard.",
-  },
-  {
     id: "tat",
     name: "TAT",
     type: "gallery",
