@@ -99,7 +99,7 @@ export const PROJECTS = [
   },
   {
     id: "glbviewer",
-    name: "SCAN ARCHIVE",
+    name: "SCANALUEGE",
     type: "gallery",
     folder: "glbviewer",
     slideCount: 3,
@@ -110,7 +110,7 @@ export const PROJECTS = [
       "bilder/glbviewer/s3.webp",
     ],
     caption:
-      "<span class='caption-specs'>SCAN ARCHIVE<span class='spec-sep'>|</span>Web Tool<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span>Collection of photogramic and lidar scans collected by me and my friends to explore and export images out of weird and unaccesable angles. Explore it at <a href='https://glb-viewer-ruby.vercel.app/' target='_blank' style='cursor: none !important; color: inherit; text-decoration: underline;'>glb-viewer-ruby.vercel.app</a>.",
+      "<span class='caption-specs'>Web Archive<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span>Collection of photogrammic scans by me and my friends serving as a playground to explore the places of 3d scans you would normaly not look at. <a href='https://scanaluege.ch' target='_blank' style='cursor: none !important; color: inherit; text-decoration: underline;'>scanaluege.ch</a>",
   },
 ];
 
