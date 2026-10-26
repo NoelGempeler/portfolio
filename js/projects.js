@@ -21,7 +21,7 @@ export const PROJECTS = [
     name: "ARCHIVE",
     type: "gallery",
     folder: "experimente",
-    slideCount: 13,
+    slideCount: 12,
     // Same clip as trail hover — opens directly on this video
     cover: "bilder/experimente/1fill.mp4",
     slides: [
@@ -36,7 +36,6 @@ export const PROJECTS = [
       "bilder/experimente/10fill.mp4",
       "bilder/experimente/11fill.mp4",
       "bilder/experimente/12fill.mp4",
-      "bilder/experimente/13fill.mp4",
     ],
     caption:
       "<span class='caption-specs'>Archive<span class='spec-sep'>|</span>20xx<span class='spec-sep'>|</span></span>A playground for visual curiosity. This is where ggg Corporation makes its research. It's a space to play, break algorithms, and embrace happy accidents.",
