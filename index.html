@@ -392,43 +392,7 @@
       }
 
       .scale-emoji-pop {
-        position: fixed;
         z-index: 10050;
-        pointer-events: none;
-        font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
-          sans-serif;
-        font-size: 1.15rem;
-        line-height: 1;
-        mix-blend-mode: normal;
-        filter: none;
-        /* Fast pop → ease crawl → hard cut (no fade) */
-        animation: scale-emoji-pop 0.78s cubic-bezier(0.05, 0.9, 0.12, 1)
-          forwards;
-        will-change: transform, opacity;
-      }
-
-      @keyframes scale-emoji-pop {
-        0% {
-          opacity: 1;
-          transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
-        }
-        14% {
-          opacity: 1;
-          transform: translate(-50%, -50%)
-            translate(calc(var(--dx) * 0.55), calc(var(--dy) * 0.55))
-            scale(1.22) rotate(calc(var(--rot) * 0.5));
-        }
-        90% {
-          opacity: 1;
-          transform: translate(-50%, -50%) translate(var(--dx), var(--dy))
-            scale(0.96) rotate(var(--rot));
-        }
-        90.01%,
-        100% {
-          opacity: 0;
-          transform: translate(-50%, -50%) translate(var(--dx), var(--dy))
-            scale(0.96) rotate(var(--rot));
-        }
       }
 
       .trail-emoji-burst {
@@ -439,6 +403,11 @@
           sans-serif;
         font-size: 1.15rem;
         line-height: 1;
+        width: 1.35rem;
+        height: 1.35rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         transform: translate(-50%, -50%);
         will-change: transform, left, top, opacity;
         user-select: none;
@@ -561,16 +530,6 @@
         margin-bottom: 0.25rem;
       }
 
-      .about-skills-list {
-        display: block;
-        text-align: right;
-      }
-
-      .skill-item {
-        display: inline-block;
-        margin-left: 6rem;
-      }
-
       @media (max-width: 800px) {
         #about-page {
           overflow-y: auto;
@@ -625,16 +584,6 @@
           text-align: left;
           line-height: 1.3;
           margin-bottom: 0.25rem;
-        }
-        .about-skills-list {
-          text-align: left;
-          line-height: 1.3;
-        }
-        .skill-item {
-          display: block;
-          margin-left: 0;
-          margin-right: 0;
-          margin-bottom: 0;
         }
       }
 
@@ -719,11 +668,41 @@
         transition: none;
       }
 
+      /* Preloaded trail hover videos stay hidden until hover */
+      video.trail-hover-video {
+        opacity: 0;
+        pointer-events: none;
+      }
+      video.trail-hover-video.trail-hover-active {
+        opacity: 1;
+      }
+
       video.slide-image {
         height: 94%;
         top: 3%;
         object-fit: contain;
         background-color: black;
+      }
+
+      /* ARCHIVE: contain videos; mismatched ratios get a white matte + 5px inset */
+      .trail-image[data-project-id="experimente"] video.slide-image {
+        height: 100% !important;
+        top: 0 !important;
+        object-fit: contain !important;
+        background-color: #ffffff;
+      }
+      .trail-image.has-framed-video {
+        background-color: #ffffff;
+      }
+      .trail-image video.slide-video-framed {
+        box-sizing: border-box;
+        border: 5px solid #ffffff !important;
+        background-color: #ffffff !important;
+        object-fit: contain !important;
+        height: 100% !important;
+        width: 100% !important;
+        top: 0 !important;
+        left: 0 !important;
       }
 
       /* GLB VIEWER only: stretch recording to fill the frame */
@@ -964,26 +943,12 @@
         pointer-events: none;
       }
 
-      #welcome-p5 {
-        position: absolute;
-        inset: 0;
-        z-index: 1;
-      }
-
-      #welcome-p5 canvas {
-        display: block;
-        width: 100% !important;
-        height: 100% !important;
-      }
-
       .welcome-title {
         position: absolute;
         left: 50%;
         top: 50%;
         z-index: 2;
-        --tx: 0px;
-        --ty: 0px;
-        transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty)));
+        transform: translate(-50%, -50%);
         font-size: 1rem;
         font-weight: 400;
         text-align: center;
@@ -991,8 +956,6 @@
         max-width: 20rem;
         line-height: 1.25;
         pointer-events: none;
-        mix-blend-mode: multiply;
-        will-change: transform;
         white-space: nowrap;
       }
 
@@ -1080,7 +1043,6 @@
     </div>
 
     <div id="welcome-screen">
-      <div id="welcome-p5" aria-hidden="true"></div>
       <p class="welcome-title">click anywhere to enter</p>
     </div>
 
@@ -1126,53 +1088,43 @@
 
     <div id="about-page">
       <div class="about-blend">
-        <model-viewer
+      <model-viewer
           src="scans/fairy_boarding.glb"
-          ar-modes="webxr scene-viewer quick-look"
-          camera-controls
+        ar-modes="webxr scene-viewer quick-look"
+        camera-controls
           touch-action="none"
           camera-orbit="180deg 75deg 64%"
           camera-target="0.24m auto auto"
           field-of-view="30deg"
           min-camera-orbit="auto auto 40%"
           max-camera-orbit="auto auto 300%"
-          orbit-sensitivity="1.5"
-          interpolation-decay="100"
-          tone-mapping="neutral"
-          shadow-intensity="0"
-          exposure="0.98"
+        orbit-sensitivity="1.5"
+        interpolation-decay="100"
+        tone-mapping="neutral"
+        shadow-intensity="0"
+        exposure="0.98"
           scale="1.6128 1.6128 1.6128"
-          interaction-prompt="none"
-        >
+        interaction-prompt="none"
+      >
           <div slot="progress-bar"></div>
-          <div slot="interaction-prompt"></div>
-        </model-viewer>
+        <div slot="interaction-prompt"></div>
+      </model-viewer>
 
-        <div class="about-center-text"></div>
-        <div class="about-bottom-text">
-          <div class="about-bio">
-            <span class="caption-specs"
-              >Noel Giger<span class="spec-sep">|</span>2005<span class="spec-sep"
-                >|</span
-              ></span
-            >
+      <div class="about-center-text"></div>
+      <div class="about-bottom-text">
+        <div class="about-bio">
+          <span class="caption-specs"
+            >Noel Giger<span class="spec-sep">|</span>2005<span class="spec-sep"
+              >|</span
+            ></span
+          >
             I'm a designer based in Lucern Switzerland. My practice is shaped by curiosity and my love to experiment with new technologies. 
             I see design not only as a craft, but as
-            a tool for dialogue and reflection. I'm fascinated by how visual
-            language can amplify underrepresented voices, provoke thought, or make
+          a tool for dialogue and reflection. I'm fascinated by how visual
+          language can amplify underrepresented voices, provoke thought, or make
             people aware of the structures that surround them. 
             I'm always hungry for a new Project and looking forwad to new experiences.
-          </div>
-          <div class="about-skills-list">
-            <span class="skill-item"><br /></span>
-            <span class="skill-item">InDesign</span>
-            <span class="skill-item">Illustrator</span>
-            <span class="skill-item">Photoshop</span>
-            <span class="skill-item">Coding</span>
-            <span class="skill-item">Figma</span>
-            <span class="skill-item">TouchDesigner</span>
-            <span class="skill-item">Photography</span>
-          </div>
+        </div>
         </div>
       </div>
     </div>
@@ -1191,8 +1143,6 @@
       <div id="swipe-hint">please swipe</div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js"></script>
-    <script src="js/welcome-shader.js"></script>
     <script type="module" src="js/app.js"></script>
   </body>
 </html>

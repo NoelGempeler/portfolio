@@ -21,18 +21,34 @@ export const PROJECTS = [
     name: "ARCHIVE",
     type: "gallery",
     folder: "experimente",
-    slideCount: 6,
+    slideCount: 13,
+    // Same clip as trail hover — opens directly on this video
+    cover: "bilder/experimente/1fill.mp4",
+    slides: [
+      "bilder/experimente/2fill.mp4",
+      "bilder/experimente/3fill.mp4",
+      "bilder/experimente/4fill.mp4",
+      "bilder/experimente/5fill.mp4",
+      "bilder/experimente/6fill.mp4",
+      "bilder/experimente/7fill.mp4",
+      "bilder/experimente/8fill.mp4",
+      "bilder/experimente/9fill.mp4",
+      "bilder/experimente/10fill.mp4",
+      "bilder/experimente/11fill.mp4",
+      "bilder/experimente/12fill.mp4",
+      "bilder/experimente/13fill.mp4",
+    ],
     caption:
-      "<span class='caption-specs'>Archive<span class='spec-sep'>|</span>20xx<span class='spec-sep'>|</span></span>A playground for visual curiosity. This where GGG Cooporation makes its research. It's a space to play, break algorithms, and embrace happy accidents.",
+      "<span class='caption-specs'>Archive<span class='spec-sep'>|</span>20xx<span class='spec-sep'>|</span></span>A playground for visual curiosity. This is where ggg Corporation makes its research. It's a space to play, break algorithms, and embrace happy accidents.",
   },
   {
     id: "bitwusst",
     name: "BITWUSST?",
     type: "gallery",
     folder: "bitwusst",
-    slideCount: 16,
+    slideCount: 11,
     caption:
-      "<span class='caption-specs'>Poster<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>BITWUSST? acts as an interface between scientific <a href='bilder/report_bitwusst.pdf' download style='cursor: none !important; color: inherit; text-decoration: underline;'>theory</a> and visual communication. Comprising a report and an accompanying poster, the project traces a spectrum of consciousness extending from atoms to algorithms. Grounded in Integrated Information Theory and Panpsychism, it investigates whether awareness is a fundamental property of matter itself or merely a result of complex processing. The work questions if feeling necessitates biological flesh, or if digital sensors can generate genuine presence. Ultimately, BITWUSST? encourages a quiet reflection on the nature of reality and Consciousness.",
+      "<span class='caption-specs'>Poster<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>BITWUSST? started as me digging into weird ideas about consciousness and piecing them together into a report and a poster. Somewhere between atoms and algorithms, I kept asking whether awareness is baked into matter or just something that shows up when things get complex enough. Can feeling exist without flesh, or could a sensor have a kind of presence too? Less a finished theory, more a quiet pile of questions about reality. <a href='bilder/report_bitwusst.pdf' download style='cursor: none !important; color: inherit; text-decoration: underline;'>read more</a>.",
   },
   {
     id: "fotografik",
@@ -66,7 +82,7 @@ export const PROJECTS = [
     name: "PERDUS",
     type: "gallery",
     folder: "paris",
-    slideCount: 18,
+    slideCount: 16,
     caption:
       "<span class='caption-specs'>Editorial<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>In a city where Baroque grandeur collides with social invisibility, PERDUS explores the rift between power and marginalization. Anchored at the Place des Victoires, the project weaves together street scans, historical context, and social critique into a dialogue. Working through absence rather than depiction, the publication is dedicated to those who remain unseen, present in the city, yet forgotten by it.",
   },
@@ -77,14 +93,21 @@ export const PROJECTS = [
     folder: "prepress",
     slideCount: 8,
     caption:
-      "<span class='caption-specs'>Postcard<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>Bypassing the scenic Mount Pilatus and the Chapel Bridge, this work focuses on street philosopher Emil Manser. The goal was to capture the imperfect side of Lucerne on a Postcard. Using Python, I built a custom generator that reconstructed Manser's portrait from the text of his famous socialy critical street signs.",
+      "<span class='caption-specs'>Postcard<span class='spec-sep'>|</span>2024<span class='spec-sep'>|</span></span>Bypassing the scenic Mount Pilatus and the Chapel Bridge, this work focuses on street philosopher Emil Manser. The goal was to capture the imperfect side of Lucerne on a postcard. Using Python, I built a custom generator that reconstructed Manser's portrait from the text of his famous socially critical street signs.",
   },
   {
     id: "tat",
     name: "TAT",
     type: "gallery",
     folder: "tat",
-    slideCount: 5,
+    slideCount: 4,
+    // Video first (same clip as trail hover). Trail thumb still uses tatcover-sm.webp.
+    cover: "bilder/tat/1fill.mp4",
+    slides: [
+      "bilder/tat/2fill.mp4",
+      "bilder/tat/3fill.mp4",
+      "bilder/tat/5fill.mp4",
+    ],
     caption:
       "<span class='caption-specs'>Latent Study<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span> A generative study using StreamDiffusion and TouchDesigner. The project utilizes my grandfather's archive of nature photography, ranging from fungi and trees to flowers as visual anchors. Crucially, each photo is paired with the unique poem he wrote for it, creating a dataset defined by deep personal connection. In the system, the translated text of each poem acts as the specific semantic driver for its paired image, steering the trajectory within the neural network. By manipulating the parameters live, the installation reveals this morphing process, a continuous latent walk that navigates the distance between the image of the plant and the emotional reality of the poem.",
   },
@@ -95,7 +118,7 @@ export const PROJECTS = [
     folder: "scans",
     slideCount: 18,
     caption:
-      "<span class='caption-specs'>Scans<span class='spec-sep'>|</span>2025<span class='spec-sep'>|</span></span> Visual study of connection beetween a hand scanner and digital moving screens. Contains series of digital scansof the movie All About Lily Chou-Chou.",
+      "<span class='caption-specs'>Scans<span class='spec-sep'>|</span>2025<span class='spec-sep'>|</span></span>Visual study of the connection between a hand scanner and digital moving screens. Contains a series of digital scans of the movie All About Lily Chou-Chou.",
   },
   {
     id: "glbviewer",
@@ -103,14 +126,15 @@ export const PROJECTS = [
     type: "gallery",
     folder: "glbviewer",
     slideCount: 3,
-    cover: "bilder/glbviewer/glbviewercover.webp",
+    // Video first (same clip as trail hover). Trail thumb still uses glbviewercover-sm.webp.
+    cover: "bilder/glbviewer/1fill.mp4",
     slides: [
       "bilder/glbviewer/s1.webp",
       "bilder/glbviewer/s2.webp",
       "bilder/glbviewer/s3.webp",
     ],
     caption:
-      "<span class='caption-specs'>Web Archive<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span>Collection of photogrammic scans by me and my friends serving as a playground to explore the places of 3d scans you would normaly not look at. <a href='https://scanaluege.ch' target='_blank' style='cursor: none !important; color: inherit; text-decoration: underline;'>scanaluege.ch</a>",
+      "<span class='caption-specs'>Web Archive<span class='spec-sep'>|</span>2026<span class='spec-sep'>|</span></span>Collection of photogrammetric scans by me and my friends, serving as a playground to explore parts of 3D scans you would not normally look at. <a href='https://scanaluege.ch' target='_blank' style='cursor: none !important; color: inherit; text-decoration: underline;'>scanaluege.ch</a>",
   },
 ];
 

@@ -563,10 +563,6 @@ function enterSite() {
     enableSound();
   }
 
-  if (typeof window.__destroyWelcomeShader === "function") {
-    window.__destroyWelcomeShader();
-  }
-
   if (welcomeScreen) {
     welcomeScreen.classList.add("welcome-dismissed");
     setTimeout(() => welcomeScreen.remove(), 600);
@@ -1069,7 +1065,11 @@ function restoreProjectThumbnail(element) {
     loadMedia(
       coverSrc,
       element,
-      () => {},
+      () => {
+        if (!state.isMobile && isVideoTrailProject(project)) {
+          ensureHoverTrailVideo(element, project);
+        }
+      },
       () => {
         // If -sm missing, fall back to full cover
         if (state.isMobile && project && coverSrc !== gallery[0]) {
@@ -1221,6 +1221,7 @@ function loadBoxThumbnail(container, galleryIndex, done) {
 
 function unloadBoxMedia(container) {
   if (!container) return;
+  container._hoverTrailVid = null;
   container.querySelectorAll("video").forEach((video) => {
     try {
       video.pause();
@@ -1233,6 +1234,7 @@ function unloadBoxMedia(container) {
     img.removeAttribute("src");
     img.remove();
   });
+  container.classList.remove("has-framed-video");
 }
 
 function unloadFadedTrailMedia() {
@@ -1296,6 +1298,12 @@ function loadMedia(
         vid.style.height = "100%";
         vid.style.top = "0";
         vid.style.backgroundColor = "transparent";
+      } else if (projectId === "experimente") {
+        // ARCHIVE: never crop; if aspect doesn't match, white matte + 5px inset
+        vid.style.objectFit = "contain";
+        vid.style.height = "100%";
+        vid.style.top = "0";
+        vid.style.backgroundColor = "#ffffff";
       } else if (
         fit === "cover" ||
         className.includes("fill") ||
@@ -1306,7 +1314,30 @@ function loadMedia(
         vid.style.top = "0";
       }
 
+      const frameArchiveVideoIfNeeded = () => {
+        if (projectId !== "experimente") return;
+        const vw = vid.videoWidth || 0;
+        const vh = vid.videoHeight || 0;
+        if (!vw || !vh) return;
+        const boxW = container.clientWidth || 1;
+        const boxH = container.clientHeight || 1;
+        const videoAspect = vw / vh;
+        const boxAspect = boxW / boxH;
+        const mismatch =
+          Math.abs(videoAspect - boxAspect) / boxAspect > 0.04;
+        if (mismatch) {
+          vid.classList.add("slide-video-framed");
+          container.classList.add("has-framed-video");
+        } else {
+          vid.classList.remove("slide-video-framed");
+          if (!container.querySelector(".slide-video-framed")) {
+            container.classList.remove("has-framed-video");
+          }
+        }
+      };
+
       vid.onloadeddata = () => {
+        frameArchiveVideoIfNeeded();
         container.appendChild(vid);
         vid.muted = true;
         vid
@@ -1501,7 +1532,6 @@ function clearScaleHint() {
   }
   stopScaleHoverSprinkle();
   if (scaleHintGlow) scaleHintGlow.classList.remove("visible");
-  document.querySelectorAll(".scale-emoji-pop").forEach((el) => el.remove());
   scaleHintFromRight = false;
 }
 
@@ -1534,7 +1564,134 @@ function isNearScaleButton(cx, cy) {
  * @param {string[]} [emojis]
  * @param {{ x?: number, y?: number, dx?: number, dy?: number, rot?: number }} [opts]
  */
+/** True when the visible zoomed image covers the scale button. */
+function isScaleButtonCoveredByImage() {
+  if (!navScale || navScale.style.display === "none") return true;
+  const zoomed = state.zoomedElement;
+  if (!zoomed) return false;
+  const sr = navScale.getBoundingClientRect();
+  const r = zoomed.getBoundingClientRect();
+  if (sr.width < 1 || sr.height < 1 || r.width < 2 || r.height < 2) return false;
+  const pad = 4;
+  return (
+    sr.left - pad < r.right &&
+    sr.right + pad > r.left &&
+    sr.top - pad < r.bottom &&
+    sr.bottom + pad > r.top
+  );
+}
+
+function getFooterTextRect() {
+  if (!footerText) return null;
+  const r = footerText.getBoundingClientRect();
+  if (r.width < 2 || r.height < 2) return null;
+  return {
+    left: r.left,
+    top: r.top,
+    right: r.right,
+    bottom: r.bottom,
+  };
+}
+
+/**
+ * Scale-emoji physics:
+ * - Bounce off the open project + caption text + screen walls
+ * - Do NOT vanish just because you hit scale — only disappear when two
+ *   opposing forces crush the emoji (e.g. image bottom vs text top)
+ */
+function updateScaleParticlePhysics(p, textRect, bounce, w) {
+  if (p.crushed) return false;
+
+  const r = Math.max(2, p.r * 0.72);
+  let hit = false;
+  let forceFromAbove = false; // ceiling pushing down
+  let forceFromBelow = false; // floor pushing up
+
+  const resolveBox = (box) => {
+    const nearestX = Math.max(box.left, Math.min(p.x, box.right));
+    const nearestY = Math.max(box.top, Math.min(p.y, box.bottom));
+    let dx = p.x - nearestX;
+    let dy = p.y - nearestY;
+    const distSq = dx * dx + dy * dy;
+    if (distSq >= r * r) return;
+
+    // Axis-aligned resolve (avoids corner multi-force wobble)
+    let side;
+    if (distSq < 0.0001) {
+      const dl = p.x - box.left;
+      const dr = box.right - p.x;
+      const dt = p.y - box.top;
+      const db = box.bottom - p.y;
+      const m = Math.min(dl, dr, dt, db);
+      side = m === dl ? "left" : m === dr ? "right" : m === dt ? "top" : "bottom";
+    } else if (Math.abs(dx) > 0.01 && Math.abs(dy) > 0.01) {
+      side = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy > 0 ? "bottom" : "top";
+    } else if (Math.abs(dx) >= Math.abs(dy)) {
+      side = dx > 0 ? "right" : "left";
+    } else {
+      side = dy > 0 ? "bottom" : "top";
+    }
+
+    if (side === "left") {
+      p.x = box.left - r;
+      if (p.vx > 0) p.vx = -Math.abs(p.vx) * bounce;
+    } else if (side === "right") {
+      p.x = box.right + r;
+      if (p.vx < 0) p.vx = Math.abs(p.vx) * bounce;
+    } else if (side === "top") {
+      p.y = box.top - r;
+      if (p.vy > 0) p.vy = -Math.abs(p.vy) * bounce;
+      forceFromBelow = true; // standing on top of the project
+    } else {
+      p.y = box.bottom + r;
+      if (p.vy < 0) p.vy = Math.abs(p.vy) * bounce;
+      forceFromAbove = true; // pressed under the project
+    }
+    hit = true;
+  };
+
+  // Only the visible open project — never faded trail tiles
+  const zoomed = state.zoomedElement;
+  if (zoomed) {
+    const zr = zoomed.getBoundingClientRect();
+    if (zr.width > 2 && zr.height > 2) resolveBox(zr);
+  }
+
+  // Caption text = floor
+  if (textRect) {
+    const onTextX = p.x >= textRect.left && p.x <= textRect.right;
+    if (onTextX && p.y + p.r >= textRect.top && p.y < textRect.top + r * 2.5) {
+      p.y = textRect.top - r;
+      if (p.vy > 0) p.vy = -Math.abs(p.vy) * bounce;
+      if (Math.abs(p.vy) < 0.8) p.vy = 0;
+      p.vx *= 0.92;
+      forceFromBelow = true;
+      hit = true;
+    }
+  }
+
+  // Screen top as a light ceiling (walls handled in tick)
+  if (p.y < r) {
+    p.y = r;
+    if (p.vy < 0) p.vy = Math.abs(p.vy) * bounce;
+    forceFromAbove = true;
+    hit = true;
+  }
+
+  // Two opposing vertical forces → disappear (don't keep squishing)
+  if (forceFromAbove && forceFromBelow) {
+    p.crushed = true;
+    p.el.style.opacity = "0";
+    p.maxLife = 0;
+    return true;
+  }
+
+  return hit;
+}
+
 function spawnScaleEmoji(emojis = SCALE_SAD_EMOJIS, opts = {}) {
+  if (isScaleButtonCoveredByImage()) return;
+
   let ox = opts.x;
   let oy = opts.y;
   if (ox == null || oy == null) {
@@ -1544,20 +1701,52 @@ function spawnScaleEmoji(emojis = SCALE_SAD_EMOJIS, opts = {}) {
     oy = rect.top + rect.height / 2;
   }
 
-  const dx = opts.dx != null ? opts.dx : (Math.random() - 0.5) * 160;
-  const dy = opts.dy != null ? opts.dy : 48 + Math.random() * 110;
-  const rot = opts.rot != null ? opts.rot : (Math.random() - 0.5) * 56;
-
   const el = document.createElement("span");
-  el.className = "scale-emoji-pop";
+  el.className = "trail-emoji-burst scale-emoji-pop";
   el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
   el.style.left = `${ox}px`;
   el.style.top = `${oy}px`;
-  el.style.setProperty("--dx", `${dx}px`);
-  el.style.setProperty("--dy", `${dy}px`);
-  el.style.setProperty("--rot", `${rot}deg`);
   document.body.appendChild(el);
-  el.addEventListener("animationend", () => el.remove());
+
+  const bounds = el.getBoundingClientRect();
+  const fontPx = parseFloat(getComputedStyle(el).fontSize) || 18;
+  const r = Math.max(
+    1,
+    Math.max(bounds.width, bounds.height, fontPx) / 2,
+  );
+
+  // Fling out from the scale button, then gravity takes over
+  let vx;
+  let vy;
+  if (opts.dx != null || opts.dy != null) {
+    vx = (opts.dx ?? (Math.random() - 0.5) * 160) / 20;
+    vy = (opts.dy ?? -(80 + Math.random() * 100)) / 20;
+  } else {
+    vx = (Math.random() - 0.5) * 7;
+    vy = -(3.2 + Math.random() * 5.5);
+  }
+  if (opts.vx != null) vx = opts.vx;
+  if (opts.vy != null) vy = opts.vy;
+
+  const maxLife =
+    Math.random() < 0.5
+      ? 3500 + Math.random() * 2500
+      : 6500 + Math.random() * 3500;
+
+  trailBurstParticles.push({
+    el,
+    x: ox,
+    y: oy,
+    vx,
+    vy,
+    r,
+    born: performance.now(),
+    maxLife,
+    lastBounceSoundAt: 0,
+    fromScale: true,
+    crushed: false,
+  });
+  startTrailBurstLoop();
 }
 
 /** One-shot pop from the scale button (happy on scale click). */
@@ -1577,11 +1766,15 @@ let trailBurstLastTs = 0;
 let trailBurstGen = 0;
 
 function getTrailObstacleRects() {
+  // Skip faded/hidden tiles — they still have layout and caused ghost bounces
   return Array.from(
-    document.querySelectorAll(".trail-image:not(.zoomed)"),
+    document.querySelectorAll(".trail-image:not(.zoomed):not(.faded)"),
   )
     .map((el) => {
+      if (getComputedStyle(el).visibility === "hidden") return null;
+      if (parseFloat(getComputedStyle(el).opacity) < 0.05) return null;
       const r = el.getBoundingClientRect();
+      if (r.right <= r.left + 2 || r.bottom <= r.top + 2) return null;
       return {
         left: r.left,
         top: r.top,
@@ -1589,12 +1782,15 @@ function getTrailObstacleRects() {
         bottom: r.bottom,
       };
     })
-    .filter((r) => r.right > r.left + 2 && r.bottom > r.top + 2);
+    .filter(Boolean);
 }
 
 /** Circle vs trail-box AABB — push out + bounce. Returns true if bounced. */
 function collideParticleWithTrailBoxes(p, boxes, bounce) {
   let hit = false;
+  // Slightly smaller than visual radius so we don't ghost-bounce in empty
+  // letterbox / next to the box edge
+  const r = Math.max(2, p.r * 0.72);
   for (let b = 0; b < boxes.length; b++) {
     const box = boxes[b];
     const nearestX = Math.max(box.left, Math.min(p.x, box.right));
@@ -1602,7 +1798,7 @@ function collideParticleWithTrailBoxes(p, boxes, bounce) {
     let dx = p.x - nearestX;
     let dy = p.y - nearestY;
     const distSq = dx * dx + dy * dy;
-    if (distSq >= p.r * p.r) continue;
+    if (distSq >= r * r) continue;
 
     if (distSq < 0.0001) {
       const dl = p.x - box.left;
@@ -1610,17 +1806,18 @@ function collideParticleWithTrailBoxes(p, boxes, bounce) {
       const dt = p.y - box.top;
       const db = box.bottom - p.y;
       const m = Math.min(dl, dr, dt, db);
+      // Prefer axis-aligned push (avoids corner “two edges” death wobble)
       if (m === dl) {
-        p.x = box.left - p.r;
+        p.x = box.left - r;
         p.vx = -Math.abs(p.vx) * bounce;
       } else if (m === dr) {
-        p.x = box.right + p.r;
+        p.x = box.right + r;
         p.vx = Math.abs(p.vx) * bounce;
       } else if (m === dt) {
-        p.y = box.top - p.r;
+        p.y = box.top - r;
         p.vy = -Math.abs(p.vy) * bounce;
       } else {
-        p.y = box.bottom + p.r;
+        p.y = box.bottom + r;
         p.vy = Math.abs(p.vy) * bounce;
       }
       hit = true;
@@ -1628,9 +1825,22 @@ function collideParticleWithTrailBoxes(p, boxes, bounce) {
     }
 
     const dist = Math.sqrt(distSq);
+    // Near corners: push out on the dominant axis only (no diagonal trap)
+    if (Math.abs(dx) > 0.01 && Math.abs(dy) > 0.01) {
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        p.x = dx > 0 ? box.right + r : box.left - r;
+        if (p.vx * dx < 0) p.vx = -p.vx * bounce;
+      } else {
+        p.y = dy > 0 ? box.bottom + r : box.top - r;
+        if (p.vy * dy < 0) p.vy = -p.vy * bounce;
+      }
+      hit = true;
+      continue;
+    }
+
     const nx = dx / dist;
     const ny = dy / dist;
-    const overlap = p.r - dist;
+    const overlap = r - dist;
     p.x += nx * overlap;
     p.y += ny * overlap;
     const vn = p.vx * nx + p.vy * ny;
@@ -1753,6 +1963,7 @@ function startTrailBurstLoop() {
     const bounce = 0.78;
     const friction = Math.pow(0.985, dt);
     const boxes = getTrailObstacleRects();
+    const textRect = getFooterTextRect();
 
     for (let i = trailBurstParticles.length - 1; i >= 0; i--) {
       const p = trailBurstParticles[i];
@@ -1763,30 +1974,48 @@ function startTrailBurstLoop() {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
 
-      let bounced = collideParticleWithTrailBoxes(p, boxes, bounce);
+      let bounced = false;
 
-      if (p.x < p.r) {
-        p.x = p.r;
-        p.vx = Math.abs(p.vx) * bounce;
-        bounced = true;
-      } else if (p.x > w - p.r) {
-        p.x = w - p.r;
-        p.vx = -Math.abs(p.vx) * bounce;
-        bounced = true;
+      if (p.fromScale) {
+        bounced = updateScaleParticlePhysics(p, textRect, bounce, w);
+
+        if (!p.crushed) {
+          if (p.x < p.r) {
+            p.x = p.r;
+            p.vx = Math.abs(p.vx) * bounce;
+            bounced = true;
+          } else if (p.x > w - p.r) {
+            p.x = w - p.r;
+            p.vx = -Math.abs(p.vx) * bounce;
+            bounced = true;
+          }
+        }
+      } else {
+        bounced = collideParticleWithTrailBoxes(p, boxes, bounce);
+
+        if (p.x < p.r) {
+          p.x = p.r;
+          p.vx = Math.abs(p.vx) * bounce;
+          bounced = true;
+        } else if (p.x > w - p.r) {
+          p.x = w - p.r;
+          p.vx = -Math.abs(p.vx) * bounce;
+          bounced = true;
+        }
+        if (p.y < p.r) {
+          p.y = p.r;
+          p.vy = Math.abs(p.vy) * bounce;
+          bounced = true;
+        } else if (p.y > h - p.r) {
+          p.y = h - p.r;
+          p.vy = -Math.abs(p.vy) * bounce;
+          bounced = true;
+        }
       }
-      if (p.y < p.r) {
-        p.y = p.r;
-        p.vy = Math.abs(p.vy) * bounce;
-        bounced = true;
-      } else if (p.y > h - p.r) {
-        p.y = h - p.r;
-        p.vy = -Math.abs(p.vy) * bounce;
-        bounced = true;
-      }
 
-      if (bounced) maybePlayBounceSound(p, now);
+      if (bounced && !p.crushed) maybePlayBounceSound(p, now);
 
-      if (age >= p.maxLife) {
+      if (p.crushed || age >= p.maxLife) {
         p.el.remove();
         trailBurstParticles.splice(i, 1);
         continue;
@@ -1796,7 +2025,7 @@ function startTrailBurstLoop() {
       p.el.style.left = `${p.x}px`;
       p.el.style.top = `${p.y}px`;
       p.el.style.opacity = snapOff ? "0" : "1";
-      p.el.style.transform = `translate(-50%, -50%) scale(${snapOff ? 0.92 : 1})`;
+      p.el.style.transform = "translate(-50%, -50%)";
     }
 
     if (trailBurstParticles.length) {
@@ -2394,6 +2623,14 @@ function stopHoverScrub(container) {
 
 function stopHoverTrailVideo(container) {
   if (!container) return;
+  const warm = container._hoverTrailVid;
+  if (warm) {
+    try {
+      warm.pause();
+    } catch (err) {}
+    warm.classList.remove("trail-hover-active");
+    return;
+  }
   container.querySelectorAll("video.trail-hover-video").forEach((video) => {
     try {
       video.pause();
@@ -2404,11 +2641,10 @@ function stopHoverTrailVideo(container) {
   });
 }
 
-/** ARCHIVE / TAT: play first fill video on hover (always muted — no audio overlay) */
-function startHoverTrailVideo(container, project) {
-  if (!container || !project || state.isMobile || state.isZoomed) return;
-  if (trailDrawActive) return;
-  stopHoverTrailVideo(container);
+/** Warm a muted hover preview so ARCHIVE/TAT/SCANALUEGE play instantly on enter */
+function ensureHoverTrailVideo(container, project) {
+  if (!container || !project || state.isMobile) return null;
+  if (container._hoverTrailVid?.isConnected) return container._hoverTrailVid;
 
   const mobileSrc = getMobileVideoPath(getFirstFillVideoPath(project));
   const fullSrc = getFirstFillVideoPath(project);
@@ -2418,7 +2654,6 @@ function startHoverTrailVideo(container, project) {
   vid.defaultMuted = true;
   vid.volume = 0;
   vid.loop = true;
-  vid.autoplay = true;
   vid.playsInline = true;
   vid.preload = "auto";
   vid.setAttribute("muted", "");
@@ -2432,18 +2667,38 @@ function startHoverTrailVideo(container, project) {
     vid.style.height = "100%";
     vid.style.top = "0";
   }
-  vid.src = mobileSrc;
   vid.onerror = () => {
     if (fullSrc && !vid.dataset.triedFull) {
       vid.dataset.triedFull = "1";
       vid.src = fullSrc;
-      vid.play().catch(() => {});
-    } else {
-      vid.remove();
+      vid.load();
     }
   };
+  vid.src = mobileSrc;
   container.appendChild(vid);
-  vid.play().catch(() => {});
+  container._hoverTrailVid = vid;
+  try {
+    vid.load();
+  } catch (err) {}
+  return vid;
+}
+
+/** ARCHIVE / TAT / SCANALUEGE: play first fill video on hover (always muted) */
+function startHoverTrailVideo(container, project) {
+  if (!container || !project || state.isMobile || state.isZoomed) return;
+  if (trailDrawActive) return;
+
+  const vid = ensureHoverTrailVideo(container, project);
+  if (!vid) return;
+  vid.classList.add("trail-hover-active");
+  vid.muted = true;
+  vid.volume = 0;
+  const playNow = () => {
+    vid.play().catch(() => {});
+  };
+  if (vid.readyState >= 2) playNow();
+  else vid.addEventListener("loadeddata", playNow, { once: true });
+  playNow();
 }
 
 function startHoverScrub(container) {
@@ -2627,7 +2882,7 @@ function createProjectBox(galleryIndex, x, y, boxId, options = {}) {
   const project = getProjectByGalleryIndex(galleryIndex);
   if (project?.id) container.dataset.projectId = project.id;
 
-  // Light still on trail; ARCHIVE/TAT play video only on hover
+  // Light still on trail; ARCHIVE/TAT/SCANALUEGE warm hover video for instant play
   const mediaSrc = project
     ? getMobileCoverPath(project)
     : GALLERIES[galleryIndex]?.[0] || null;
@@ -2637,14 +2892,22 @@ function createProjectBox(galleryIndex, x, y, boxId, options = {}) {
       loadMedia(
         mediaSrc,
         container,
-        () => {},
+        () => {
+          if (!state.isMobile && isVideoTrailProject(project)) {
+            ensureHoverTrailVideo(container, project);
+          }
+        },
         () => {
           const fallback = GALLERIES[galleryIndex]?.[0];
           if (fallback && fallback !== mediaSrc && !isVideoPath(fallback)) {
             loadMedia(
               fallback,
               container,
-              () => {},
+              () => {
+                if (!state.isMobile && isVideoTrailProject(project)) {
+                  ensureHoverTrailVideo(container, project);
+                }
+              },
               () => {
                 container.style.backgroundColor = "#e5e7eb";
                 container.style.border = "1px solid #9ca3af";
@@ -2931,6 +3194,19 @@ function handleSlideshowClick(e, element) {
   else changeSlide(-1);
 }
 
+/** Pause + mute current slide videos so they don't keep sounding while the next loads. */
+function pauseBoxVideos(container) {
+  if (!container) return;
+  container.querySelectorAll("video").forEach((vid) => {
+    try {
+      vid.pause();
+      vid.muted = true;
+    } catch (_) {
+      /* ignore */
+    }
+  });
+}
+
 function changeSlide(direction, isAutoSkip = false) {
   if (!state.zoomedElement) return;
   if (isEmbedProject(state.currentGalleryIndex)) return;
@@ -2945,6 +3221,9 @@ function changeSlide(direction, isAutoSkip = false) {
   state.slideRequestId = (state.slideRequestId || 0) + 1;
   const reqId = state.slideRequestId;
 
+  // Stop the previous video immediately (blur/loading still shows the old frame)
+  pauseBoxVideos(elementRef);
+
   if (!state.isMuted && !state.isMobile && !isAutoSkip) {
     skipSound.currentTime = 0;
     skipSound.play().catch(() => {});
@@ -2958,20 +3237,22 @@ function changeSlide(direction, isAutoSkip = false) {
     if (state.loaderTimeout) clearTimeout(state.loaderTimeout);
     const existingLoader = state.zoomedElement.querySelector(".slide-loader");
     if (existingLoader) existingLoader.remove();
+    // Blur the current frame immediately while the next slide loads
+    state.zoomedElement.classList.add("loading-active");
     state.loaderTimeout = setTimeout(() => {
-      if (reqId === state.slideRequestId) {
-        const loader = document.createElement("div");
-        loader.className = "slide-loader";
-        loader.innerHTML = `
-          <div class="loading-rect"></div>
-          <div class="loading-rect"></div>
-          <div class="loading-rect"></div>
-          <div class="loading-rect"></div>
-        `;
-        state.zoomedElement.appendChild(loader);
-        state.zoomedElement.classList.add("loading-active");
-        refreshLoaderScale(state.zoomedElement);
-      }
+      if (reqId !== state.slideRequestId) return;
+      if (!state.zoomedElement?.classList.contains("loading-active")) return;
+      if (state.zoomedElement.querySelector(".slide-loader")) return;
+      const loader = document.createElement("div");
+      loader.className = "slide-loader";
+      loader.innerHTML = `
+        <div class="loading-rect"></div>
+        <div class="loading-rect"></div>
+        <div class="loading-rect"></div>
+        <div class="loading-rect"></div>
+      `;
+      state.zoomedElement.appendChild(loader);
+      refreshLoaderScale(state.zoomedElement);
     }, 300);
   }
 
