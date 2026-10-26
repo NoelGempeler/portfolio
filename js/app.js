@@ -1299,11 +1299,11 @@ function loadMedia(
         vid.style.top = "0";
         vid.style.backgroundColor = "transparent";
       } else if (projectId === "experimente") {
-        // ARCHIVE: never crop; if aspect doesn't match, white matte + 5px inset
+        // ARCHIVE: never crop; if aspect doesn't match, black letterbox + 5px inset
         vid.style.objectFit = "contain";
         vid.style.height = "100%";
         vid.style.top = "0";
-        vid.style.backgroundColor = "#ffffff";
+        vid.style.backgroundColor = "#000000";
       } else if (
         fit === "cover" ||
         className.includes("fill") ||
